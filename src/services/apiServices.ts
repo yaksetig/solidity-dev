@@ -23,7 +23,7 @@ export class APIServices {
     this.openrouterKey = openrouterKey;
   }
 
-  async callPerplexityAPI(prompt: string): Promise<string> {
+  async callPerplexityAPI(asset: string, prompt: string): Promise<string> {
     const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
@@ -31,34 +31,45 @@ export class APIServices {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar-pro',
+        model: 'llama-3.1-sonar-small-128k-online',
         messages: [
           {
             role: 'system',
-            content: `You are a quantitative trading strategist. Generate detailed algorithmic trading strategies that must include:
+            content: `You are a quantitative crypto trading strategist. Generate detailed algorithmic trading strategies for SINGLE CRYPTOCURRENCY trading on 4-hour intervals. Your strategy must be implementable in a SINGLE Python file using ONLY native Python libraries (no external imports).
 
-1. STRATEGY OVERVIEW: Clear name and 2-3 sentence description
-2. MARKET FOCUS: Specific markets/instruments to trade (e.g., crypto pairs, forex, stocks)
-3. DATA REQUIREMENTS: Exact APIs needed (Binance for prices, DefiLlama for TVL, etc.)
-4. TECHNICAL INDICATORS: Specific indicators and their parameters
-5. ENTRY CONDITIONS: Precise mathematical conditions for opening positions
-6. EXIT CONDITIONS: Specific stop-loss, take-profit, and exit rules
-7. RISK MANAGEMENT: Position sizing rules and maximum exposure limits
-8. IMPLEMENTATION REQUIREMENTS: Key Python libraries and API endpoints needed
+Required sections:
+1. STRATEGY OVERVIEW: Name and description for 4h crypto trading
+2. TARGET ASSET: ONE specific cryptocurrency (${asset})
+3. DATA SOURCE: Specific crypto exchange REST API endpoints (no libraries needed)
+4. TECHNICAL INDICATORS: Mathematical formulas using only basic math operations
+5. ENTRY CONDITIONS: Precise conditions based on 4h candle data
+6. EXIT CONDITIONS: Stop-loss and take-profit rules
+7. RISK MANAGEMENT: Position sizing as percentage of capital
+8. NATIVE IMPLEMENTATION: How to implement using only urllib, json, time, math modules
 
-Format your response with clear sections using these exact headers. Be specific with numbers, thresholds, and mathematical formulas.`
+Focus on strategies that work with 4-hour timeframes and can be coded in a single Python file.`
           },
           {
             role: 'user',
-            content: `Generate one complete algorithmic trading strategy that uses at most 2 APIs: Binance and DefiLlama. 
-Focus on: ${prompt}
-Complexity level: intermediate
-Include all 8 required sections in your response.`
+            content: `Generate a crypto trading strategy for ${asset} using 4-hour intervals. The strategy must:
+- Target ONE specific cryptocurrency: ${asset}
+- Use 4-hour candlestick data
+- Be implementable in a single Python file
+- Use ONLY native Python libraries (urllib, json, time, math)
+- Include specific API endpoints for data fetching
+- Provide exact mathematical formulas for indicators
+
+${prompt}`
           }
         ],
         temperature: 0.2,
         top_p: 0.9,
-        max_tokens: 2000
+        max_tokens: 2000,
+        return_images: false,
+        return_related_questions: false,
+        search_recency_filter: 'month',
+        frequency_penalty: 1,
+        presence_penalty: 0
       }),
     });
 
@@ -78,35 +89,41 @@ Include all 8 required sections in your response.`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-oss-20b',
+        model: 'openai/gpt-oss-120b',
         messages: [
           {
             role: 'system',
-            content: `You are a senior Python developer specializing in algorithmic trading systems. You receive structured trading strategies and must create detailed implementation plans.
+            content: `You are a Python architect specializing in single-file crypto trading bots. Convert trading strategies into implementation plans for SINGLE Python files using ONLY native libraries.
 
-Your implementation plan must include:
+Your plan must specify:
+1. SINGLE FILE STRUCTURE: All code in one main.py file
+2. NATIVE MODULES ONLY: urllib.request, json, time, math, datetime
+3. API INTEGRATION: Direct HTTP requests using urllib
+4. DATA PROCESSING: Manual implementation of indicators
+5. EXECUTION LOGIC: Step-by-step trading decisions
+6. ERROR HANDLING: Try/except blocks for network requests
+7. CONFIGURATION: Hardcoded or simple variable settings
+8. MAIN LOOP: 4-hour interval execution structure
 
-1. PROJECT STRUCTURE: File organization and module breakdown
-2. DEPENDENCIES: Required Python packages and versions
-3. API INTEGRATION: Specific endpoint implementations for each required API
-4. DATA PIPELINE: How to fetch, process, and store market data
-5. STRATEGY LOGIC: Step-by-step implementation of entry/exit conditions
-6. RISK MANAGEMENT: Implementation of position sizing and risk controls
-7. TESTING FRAMEWORK: Unit tests and backtesting approach
-8. DEPLOYMENT CONSIDERATIONS: Error handling, logging, and monitoring
-
-Provide concrete implementation steps, not just high-level concepts.`
+NO external dependencies. NO separate files. ALL functionality in ONE file.`
           },
           {
             role: 'user',
-            content: `Based on this structured trading strategy, create a detailed implementation plan with all 8 required sections:
+            content: `Create a detailed implementation plan for this single-file crypto trading strategy:
 
-${strategy}`
+${strategy}
+
+The plan must focus on:
+1. Single Python file architecture
+2. Native library usage only (urllib, json, time, math)
+3. 4-hour interval execution
+4. Direct API calls for crypto data
+5. Manual indicator calculations
+6. Complete trading logic in one file`
           }
         ],
-        temperature: 1,
-        top_p: 1,
-        max_tokens: 4096,
+        temperature: 0.1,
+        max_tokens: 3000,
       }),
     });
 
@@ -130,30 +147,41 @@ ${strategy}`
         messages: [
           {
             role: 'system',
-            content: `You are an expert Python developer. Generate production-ready algorithmic trading code based on the provided implementation plan.
+            content: `You are a Python developer creating single-file crypto trading bots. Generate a complete Python script that:
 
-Requirements:
-- Use proper error handling and logging
-- Include docstrings for all functions and classes
-- Implement proper configuration management
-- Add rate limiting for API calls
-- Include basic backtesting functionality
-- Follow PEP 8 style guidelines
+REQUIREMENTS:
+- Single file with ALL functionality
+- Uses ONLY: urllib.request, json, time, math, datetime, os
+- Makes direct HTTP requests to crypto APIs
+- Implements technical indicators with basic math
+- Runs on 4-hour intervals
+- Includes proper error handling
+- Has clear comments and docstrings
 
-Generate ONLY Python code with no markdown formatting or explanations.`
+OUTPUT FORMAT:
+- Generate ONLY Python code
+- No markdown, no explanations
+- Complete executable script
+- All functions in one file`
           },
           {
             role: 'user',
-            content: `Generate production-ready Python code based on this detailed implementation plan:
+            content: `Generate a complete single-file Python trading bot based on this plan:
 
 ${plan}
 
-Generate ONLY Python code with no markdown or explanations.`
+Ensure the code:
+1. Is a complete, executable Python script
+2. Uses only native libraries (urllib.request, json, time, math, datetime)
+3. Implements all indicators manually
+4. Makes direct HTTP requests for crypto data
+5. Runs on 4-hour intervals
+6. Includes error handling and logging
+7. Has clear structure and comments`
           }
         ],
-        temperature: 1,
-        top_p: 1,
-        max_tokens: 4096,
+        temperature: 0.05,
+        max_tokens: 4000,
       }),
     });
 
@@ -165,51 +193,77 @@ Generate ONLY Python code with no markdown or explanations.`
     return data.choices[0]?.message?.content || 'No code generated';
   }
 
-  validateCode(code: string): string {
-    const validationResults: string[] = [];
-    
-    // Basic Python syntax checks
-    if (code.includes('import ')) {
-      validationResults.push('✅ Import statements found');
-    } else {
-      validationResults.push('⚠️ No import statements detected');
-    }
+  async validateWithRailwayAPI(code: string): Promise<string> {
+    try {
+      const response = await fetch('https://my-python-api.up.railway.app/run', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
 
-    if (code.includes('class ') || code.includes('def ')) {
-      validationResults.push('✅ Functions/Classes defined');
-    } else {
-      validationResults.push('⚠️ No functions or classes found');
-    }
-
-    if (code.includes('ccxt') || code.includes('binance')) {
-      validationResults.push('✅ Trading API integration detected');
-    } else {
-      validationResults.push('⚠️ No trading API integration found');
-    }
-
-    // Basic syntax validation
-    const lines = code.split('\n');
-    let indentationConsistent = true;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (line.trim() && line.startsWith(' ') && !line.startsWith('    ') && !line.startsWith('\t')) {
-        indentationConsistent = false;
-        break;
+      if (!response.ok) {
+        throw new Error(`Railway API error: ${response.status}`);
       }
-    }
 
-    if (indentationConsistent) {
-      validationResults.push('✅ Indentation appears consistent');
+      const result = await response.json();
+      
+      if (result.success) {
+        return '✅ Code runs successfully on Railway API';
+      } else {
+        return `❌ Railway execution error: ${result.error || 'Unknown error'}`;
+      }
+    } catch (error) {
+      console.error('Railway API validation failed:', error);
+      return `⚠️ Railway API unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
+  }
+
+  validateCode(code: string): string {
+    const issues: string[] = [];
+    
+    // Check for native libraries only
+    const allowedImports = ['urllib.request', 'json', 'time', 'math', 'datetime', 'os'];
+    const importLines = code.match(/^import .+$/gm) || [];
+    const fromImportLines = code.match(/^from .+ import .+$/gm) || [];
+    
+    [...importLines, ...fromImportLines].forEach(line => {
+      const isAllowed = allowedImports.some(allowed => line.includes(allowed));
+      if (!isAllowed && !line.includes('#')) {
+        issues.push(`Unsupported import: ${line.trim()}`);
+      }
+    });
+    
+    // Check for single file structure
+    if (!code.includes('def ')) {
+      issues.push('No functions detected - code structure may be incomplete');
+    }
+    
+    if (!code.includes('if __name__ == "__main__":')) {
+      issues.push('Missing main execution block');
+    }
+    
+    // Check for crypto trading components
+    const cryptoKeywords = ['btc', 'eth', 'crypto', 'binance', 'price', 'candle'];
+    const hasCrypto = cryptoKeywords.some(keyword => 
+      code.toLowerCase().includes(keyword)
+    );
+    
+    if (!hasCrypto) {
+      issues.push('No crypto trading logic detected');
+    }
+    
+    // Check for 4-hour interval logic
+    if (!code.includes('4h') && !code.includes('14400') && !code.includes('4 * 60 * 60')) {
+      issues.push('No 4-hour interval logic detected');
+    }
+    
+    if (issues.length === 0) {
+      return '✅ Code validation passed - single-file crypto strategy structure looks good';
     } else {
-      validationResults.push('⚠️ Inconsistent indentation detected');
+      return `⚠️ Code validation issues:\n${issues.map(issue => `• ${issue}`).join('\n')}`;
     }
-
-    validationResults.push('');
-    validationResults.push('⚠️ Manual testing recommended before live trading');
-    validationResults.push('⚠️ Add proper error handling and logging');
-    validationResults.push('⚠️ Test with paper trading first');
-
-    return validationResults.join('\n');
   }
 
   async testApiConnections(): Promise<{ perplexity: boolean; openrouter: boolean }> {

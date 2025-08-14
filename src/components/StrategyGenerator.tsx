@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Play, Code, CheckCircle, AlertCircle, Settings } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Loader2, Play, Code, CheckCircle, AlertCircle, Settings, Brain, Zap, TestTube, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import ApiKeyDialog from "@/components/ApiKeyDialog";
 import { APIServices } from "@/services/apiServices";
@@ -16,33 +17,51 @@ interface GenerationStep {
   content?: string;
 }
 
+const CRYPTO_ASSETS = [
+  { value: 'BTC', label: 'Bitcoin (BTC)' },
+  { value: 'ETH', label: 'Ethereum (ETH)' },
+  { value: 'SOL', label: 'Solana (SOL)' },
+  { value: 'ADA', label: 'Cardano (ADA)' },
+  { value: 'MATIC', label: 'Polygon (MATIC)' },
+  { value: 'DOT', label: 'Polkadot (DOT)' },
+  { value: 'LINK', label: 'Chainlink (LINK)' },
+  { value: 'AVAX', label: 'Avalanche (AVAX)' },
+];
+
 const StrategyGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
   const [apiServices, setApiServices] = useState<APIServices | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<string>('BTC');
   const [steps, setSteps] = useState<GenerationStep[]>([
     {
       id: 'strategy',
-      title: 'Strategy Generation',
-      description: 'Creating algorithmic trading strategy using Perplexity AI',
+      title: 'Generate Crypto Strategy',
+      description: 'AI creates a 4-hour interval crypto trading strategy for your selected asset',
       status: 'pending'
     },
     {
       id: 'planning',
-      title: 'Implementation Planning',
-      description: 'Generating Python architecture plan with OpenRouter AI',
+      title: 'Single-File Architecture',
+      description: 'Design a complete implementation plan for a single Python file',
       status: 'pending'
     },
     {
       id: 'coding',
-      title: 'Code Generation',
-      description: 'Creating Python implementation with OpenRouter GPT-OSS',
+      title: 'Generate Native Code',
+      description: 'Create a complete Python script using only native libraries',
       status: 'pending'
     },
     {
-      id: 'testing',
-      title: 'Code Testing',
-      description: 'Validating generated code functionality',
+      id: 'validation',
+      title: 'Code Quality Check',
+      description: 'Validate code structure and native library usage',
+      status: 'pending'
+    },
+    {
+      id: 'execution',
+      title: 'Railway API Test',
+      description: 'Test code execution on Railway Python API',
       status: 'pending'
     }
   ]);
@@ -86,7 +105,8 @@ const StrategyGenerator = () => {
       ));
 
       const strategy = await apiServices.callPerplexityAPI(
-        "I want you to come up with one algorithmic trading strategy that relies, at most, on two APIs: Binance and DefiLlama. Provide a detailed strategy description including entry/exit conditions, risk management, and specific metrics to track."
+        selectedAsset,
+        `Create a detailed algorithmic trading strategy focused on ${selectedAsset} cryptocurrency using 4-hour intervals. Include momentum indicators, volatility analysis, and risk management specific to crypto markets.`
       );
 
       setSteps(prev => prev.map((step, index) => 
@@ -115,7 +135,7 @@ const StrategyGenerator = () => {
         index === 2 ? { ...step, status: 'completed', content: code } : step
       ));
 
-      // Step 4: Code Testing/Validation
+      // Step 4: Code Quality Check
       setSteps(prev => prev.map((step, index) => 
         index === 3 ? { ...step, status: 'loading' } : step
       ));
@@ -124,6 +144,17 @@ const StrategyGenerator = () => {
 
       setSteps(prev => prev.map((step, index) => 
         index === 3 ? { ...step, status: 'completed', content: validation } : step
+      ));
+
+      // Step 5: Railway API Test
+      setSteps(prev => prev.map((step, index) => 
+        index === 4 ? { ...step, status: 'loading' } : step
+      ));
+
+      const executionResult = await apiServices.validateWithRailwayAPI(code);
+
+      setSteps(prev => prev.map((step, index) => 
+        index === 4 ? { ...step, status: 'completed', content: executionResult } : step
       ));
 
       setIsGenerating(false);
@@ -150,16 +181,26 @@ const StrategyGenerator = () => {
     }, 500);
   };
 
-  const getStepIcon = (status: GenerationStep['status']) => {
+  const getStepIcon = (status: GenerationStep['status'], stepId: string) => {
+    const iconMap = {
+      strategy: Brain,
+      planning: Zap,
+      coding: Code,
+      validation: TestTube,
+      execution: CheckCircle2
+    };
+    
+    const IconComponent = iconMap[stepId as keyof typeof iconMap] || Code;
+    
     switch (status) {
       case 'loading':
         return <Loader2 className="h-4 w-4 animate-spin" />;
       case 'completed':
-        return <CheckCircle className="h-4 w-4 text-success" />;
+        return <IconComponent className="h-4 w-4 text-success" />;
       case 'error':
         return <AlertCircle className="h-4 w-4 text-destructive" />;
       default:
-        return <div className="h-4 w-4 rounded-full border-2 border-muted" />;
+        return <IconComponent className="h-4 w-4 text-muted-foreground" />;
     }
   };
 
@@ -175,34 +216,54 @@ const StrategyGenerator = () => {
             </div>
             
             <h1 className="text-4xl md:text-6xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-              Generate Trading Strategies
+              Single-File Crypto Strategies
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Create algorithmic trading strategies using AI. From concept to implementation in minutes.
+              Generate complete crypto trading strategies in a single Python file. 4-hour intervals, native libraries only.
             </p>
             
-            <div className="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-4">
-              <Button 
-                variant="hero" 
-                size="lg"
-                onClick={handleGenerateStrategy}
-                disabled={isGenerating}
-                className="group"
-              >
-                <Play className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
-                Create New Trading Strategy
-              </Button>
+            <div className="flex flex-col items-center space-y-6">
+              <div className="flex items-center space-x-4">
+                <label htmlFor="asset-select" className="text-sm font-medium text-foreground">
+                  Select Cryptocurrency:
+                </label>
+                <Select value={selectedAsset} onValueChange={setSelectedAsset}>
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Choose asset" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CRYPTO_ASSETS.map((asset) => (
+                      <SelectItem key={asset.value} value={asset.value}>
+                        {asset.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               
-              <Button 
-                variant="outline" 
-                size="lg"
-                onClick={() => setShowApiKeyDialog(true)}
-                className="group border-primary/20 text-primary hover:bg-primary/10"
-              >
-                <Settings className="h-5 w-5 mr-2 group-hover:rotate-90 transition-transform" />
-                Configure API Keys
-              </Button>
+              <div className="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-4">
+                <Button 
+                  variant="hero" 
+                  size="lg"
+                  onClick={handleGenerateStrategy}
+                  disabled={isGenerating}
+                  className="group"
+                >
+                  <Play className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
+                  Generate {selectedAsset} Strategy
+                </Button>
+                
+                <Button 
+                  variant="outline" 
+                  size="lg"
+                  onClick={() => setShowApiKeyDialog(true)}
+                  className="group border-primary/20 text-primary hover:bg-primary/10"
+                >
+                  <Settings className="h-5 w-5 mr-2 group-hover:rotate-90 transition-transform" />
+                  Configure API Keys
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -215,7 +276,7 @@ const StrategyGenerator = () => {
             <Card key={step.id} className="p-6 bg-gradient-card border-border/50 shadow-card animate-slide-up">
               <div className="flex items-start space-x-4">
                 <div className="flex-shrink-0 mt-1">
-                  {getStepIcon(step.status)}
+                  {getStepIcon(step.status, step.id)}
                 </div>
                 
                 <div className="flex-1 space-y-3">
@@ -250,7 +311,7 @@ const StrategyGenerator = () => {
                            onClick={() => navigator.clipboard.writeText(step.content || '')}
                            className="text-xs"
                          >
-                           Copy
+                           Copy {step.id === 'coding' ? 'Python Code' : 'Content'}
                          </Button>
                        </div>
                        <pre className="text-sm text-foreground whitespace-pre-wrap font-mono overflow-x-auto">
