@@ -1,3 +1,5 @@
+import { RateLimiter } from '@/utils/rateLimiter';
+
 interface PerplexityResponse {
   choices: Array<{
     message: {
@@ -31,25 +33,41 @@ interface ArchitectureJSON {
 
 export class APIServices {
   private openrouterKey: string;
+  private rateLimiter: RateLimiter;
 
   constructor(openrouterKey: string) {
     this.openrouterKey = openrouterKey;
+    this.rateLimiter = new RateLimiter({
+      requestsPerMinute: 1,
+      retryDelaySeconds: 61,
+      maxRetries: 3
+    });
+  }
+
+  // Expose rate limiter status for UI
+  getRateLimitStatus() {
+    return this.rateLimiter.getQueueStatus();
+  }
+
+  getEstimatedWaitTime() {
+    return this.rateLimiter.getEstimatedWaitTime();
   }
 
 
   async callOpenRouterArchitect(contractRequest: string): Promise<string> {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.openrouterKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'qwen/qwen-2.5-coder-32b-instruct:free',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a Solidity architect. Output ONLY a valid JSON object with function signatures for smart contracts.
+    return this.rateLimiter.makeRequest(async () => {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openrouterKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'qwen/qwen-2.5-coder-32b-instruct:free',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a Solidity architect. Output ONLY a valid JSON object with function signatures for smart contracts.
 
 REQUIRED JSON FORMAT:
 {
@@ -77,10 +95,10 @@ REQUIRED JSON FORMAT:
 }
 
 CRITICAL: Output ONLY the JSON object, no explanations, no markdown, no additional text.`
-          },
-          {
-            role: 'user',
-            content: `Convert this smart contract request into a JSON function architecture:
+            },
+            {
+              role: 'user',
+              content: `Convert this smart contract request into a JSON function architecture:
 
 ${contractRequest}
 
@@ -93,19 +111,20 @@ Create function signatures for:
 - Constructor for initialization
 
 Output ONLY valid JSON with the exact format specified.`
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 3000,
-      }),
-    });
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 3000,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`OpenRouter Architect API error: ${response.status} ${response.statusText}`);
-    }
+      if (!response.ok) {
+        throw new Error(`OpenRouter Architect API error: ${response.status} ${response.statusText}`);
+      }
 
-    const data: OpenRouterResponse = await response.json();
-    return data.choices[0]?.message?.content || 'No architecture generated';
+      const data: OpenRouterResponse = await response.json();
+      return data.choices[0]?.message?.content || 'No architecture generated';
+    }, 'architect');
   }
 
   parseArchitectureJSON(jsonString: string): ArchitectureJSON {
@@ -137,17 +156,22 @@ Output ONLY valid JSON with the exact format specified.`
     const architecture = this.parseArchitectureJSON(architectureJson);
     const implementedFunctions: { name: string; code: string }[] = [];
     
-    // Implement each function individually
-    for (const func of architecture.functions) {
+    // Batch functions by type for more efficient API calls
+    const functionBatches = this.batchFunctionsByType(architecture.functions);
+    
+    // Process each batch with rate limiting
+    for (const batch of functionBatches) {
       try {
-        const functionCode = await this.implementFunction(func, contractRequest, architecture.functions);
-        implementedFunctions.push({ name: func.name, code: functionCode });
+        const batchCode = await this.implementFunctionBatch(batch, contractRequest, architecture.functions);
+        implementedFunctions.push(...batchCode);
       } catch (error) {
-        console.error(`Failed to implement ${func.name}:`, error);
-        // Add error placeholder function
-        implementedFunctions.push({ 
-          name: func.name, 
-          code: `def ${func.name}():\n    """ERROR: Failed to implement ${func.name}\n    ${error instanceof Error ? error.message : 'Unknown error'}\n    """\n    raise NotImplementedError("Function implementation failed")`
+        console.error(`Failed to implement function batch:`, error);
+        // Add error placeholders for failed batch
+        batch.forEach(func => {
+          implementedFunctions.push({ 
+            name: func.name, 
+            code: `// ERROR: Failed to implement ${func.name}\n// ${error instanceof Error ? error.message : 'Unknown error'}\nfunction ${func.name}() public {\n    revert("Function implementation failed");\n}`
+          });
         });
       }
     }
@@ -155,19 +179,123 @@ Output ONLY valid JSON with the exact format specified.`
     return implementedFunctions;
   }
 
+  private batchFunctionsByType(functions: FunctionSignature[]): FunctionSignature[][] {
+    // Group functions by type to reduce API calls
+    const constructors = functions.filter(f => f.name.toLowerCase().includes('constructor'));
+    const viewFunctions = functions.filter(f => f.signature.includes('view') || f.signature.includes('pure'));
+    const stateFunctions = functions.filter(f => !f.signature.includes('view') && !f.signature.includes('pure') && !f.name.toLowerCase().includes('constructor'));
+    
+    const batches: FunctionSignature[][] = [];
+    
+    // Create smaller batches to stay within token limits
+    const maxBatchSize = 3;
+    
+    [constructors, viewFunctions, stateFunctions].forEach(group => {
+      for (let i = 0; i < group.length; i += maxBatchSize) {
+        const batch = group.slice(i, i + maxBatchSize);
+        if (batch.length > 0) {
+          batches.push(batch);
+        }
+      }
+    });
+    
+    return batches;
+  }
+
+  private async implementFunctionBatch(batch: FunctionSignature[], contractRequest: string, allFunctions: FunctionSignature[]): Promise<{ name: string; code: string }[]> {
+    return this.rateLimiter.makeRequest(async () => {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openrouterKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'qwen/qwen-2.5-coder-32b-instruct:free',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a Solidity code generator. Generate complete function implementations for multiple functions at once.
+
+CRITICAL RULES:
+- Generate ALL requested functions in one response
+- Each function must be complete and syntactically correct
+- Separate functions with double newlines
+- NO explanations, NO markdown blocks, just raw Solidity code
+- Follow Solidity best practices and security patterns
+- Include proper access control and error handling`
+            },
+            {
+              role: 'user',
+              content: `Implement these ${batch.length} Solidity functions:
+
+${batch.map(f => `FUNCTION: ${f.signature}\nPURPOSE: ${f.purpose}`).join('\n\n')}
+
+CONTRACT CONTEXT: ${contractRequest}
+
+ALL FUNCTIONS IN CONTRACT:
+${allFunctions.map(f => `- ${f.signature}`).join('\n')}
+
+Generate complete implementations for ALL ${batch.length} functions above. Return only raw Solidity code.`
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 2500,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenRouter Implementation API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data: OpenRouterResponse = await response.json();
+      const rawCode = data.choices[0]?.message?.content || 'No implementation generated';
+      
+      // Parse the batch response into individual functions
+      return this.parseBatchFunctionResponse(rawCode, batch);
+    }, `batch-${batch.map(f => f.name).join('-')}`);
+  }
+
+  private parseBatchFunctionResponse(rawCode: string, expectedFunctions: FunctionSignature[]): { name: string; code: string }[] {
+    const functions: { name: string; code: string }[] = [];
+    
+    // Split by function boundaries
+    const functionBlocks = rawCode.split(/(?=\s*function\s+)/);
+    
+    expectedFunctions.forEach((expectedFunc, index) => {
+      const block = functionBlocks[index + 1] || functionBlocks[0]; // +1 because first split is usually empty
+      if (block) {
+        const cleanedCode = this.extractSolidityCode(block);
+        functions.push({
+          name: expectedFunc.name,
+          code: cleanedCode
+        });
+      } else {
+        // Fallback if parsing fails
+        functions.push({
+          name: expectedFunc.name,
+          code: `function ${expectedFunc.name}() public {\n    // TODO: Implement function\n    revert("Not implemented");\n}`
+        });
+      }
+    });
+    
+    return functions;
+  }
+
   async implementFunction(functionSig: FunctionSignature, contractRequest: string, allFunctions: FunctionSignature[]): Promise<string> {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.openrouterKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'qwen/qwen-2.5-coder-32b-instruct:free',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a Solidity code generator. Your ONLY job is to output valid Solidity function code.
+    return this.rateLimiter.makeRequest(async () => {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openrouterKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'qwen/qwen-2.5-coder-32b-instruct:free',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a Solidity code generator. Your ONLY job is to output valid Solidity function code.
 
 CRITICAL RULES:
 - OUTPUT ONLY SOLIDITY CODE - NO EXPLANATIONS, NO MARKDOWN, NO TEXT
@@ -190,10 +318,10 @@ function transfer(address to, uint256 amount) public returns (bool) {
     emit Transfer(msg.sender, to, amount);
     return true;
 }`
-          },
-          {
-            role: 'user',
-            content: `IMPLEMENT THIS FUNCTION:
+            },
+            {
+              role: 'user',
+              content: `IMPLEMENT THIS FUNCTION:
 ${functionSig.signature}
 
 PURPOSE: ${functionSig.purpose}
@@ -205,20 +333,21 @@ OTHER FUNCTIONS IN CONTRACT:
 ${allFunctions.map(f => `- ${f.signature}`).join('\n')}
 
 OUTPUT ONLY THE SOLIDITY FUNCTION CODE. NO MARKDOWN. NO EXPLANATIONS. START WITH 'function' AND END WITH PROPER CLOSING BRACE.`
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 1500,
-      }),
-    });
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 1500,
+        }),
+      });
 
-    if (!response.ok) {
-      throw new Error(`OpenRouter Implementation API error: ${response.status} ${response.statusText}`);
-    }
+      if (!response.ok) {
+        throw new Error(`OpenRouter Implementation API error: ${response.status} ${response.statusText}`);
+      }
 
-    const data: OpenRouterResponse = await response.json();
-    const rawCode = data.choices[0]?.message?.content || 'No implementation generated';
-    return this.extractSolidityCode(rawCode);
+      const data: OpenRouterResponse = await response.json();
+      const rawCode = data.choices[0]?.message?.content || 'No implementation generated';
+      return this.extractSolidityCode(rawCode);
+    }, `function-${functionSig.name}`);
   }
 
   private extractSolidityCode(rawResponse: string): string {
@@ -572,6 +701,7 @@ ${implementedFunctions.map(f => '    ' + f.code.split('\n').join('\n    ')).join
   }
 
   async callOpenRouterCodegen(plan: string): Promise<string> {
+    return this.rateLimiter.makeRequest(async () => {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -641,10 +771,12 @@ The script must be able to run backtests to validate strategy performance before
 
     const data: OpenRouterResponse = await response.json();
     return data.choices[0]?.message?.content || 'No code generated';
+    }, 'codegen');
   }
 
   async compileSolidityContract(solidityCode: string): Promise<string> {
-    try {
+    return this.rateLimiter.makeRequest(async () => {
+      try {
       const response = await fetch('https://solidity-compiler.up.railway.app/compile', {
         method: 'POST',
         headers: {
@@ -698,11 +830,12 @@ The contract compiled successfully and is ready for deployment!`;
         }
       }
 
-      return '✅ Contract compiled successfully but no output generated.';
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      return `❌ **Compilation Failed:**\n\nError: ${errorMessage}\n\nPlease check your Solidity code for syntax errors.`;
-    }
+        return '✅ Contract compiled successfully but no output generated.';
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        return `❌ **Compilation Failed:**\n\nError: ${errorMessage}\n\nPlease check your Solidity code for syntax errors.`;
+      }
+    }, 'compilation');
   }
 
   async validateWithRailwayAPI(code: string): Promise<string> {
