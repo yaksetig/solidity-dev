@@ -180,14 +180,41 @@ const ContractGenerator = () => {
       ));
 
       // Step 2: Implement Functions
-      setCurrentSteps(prev => prev.map((step, index) => 
-        index === 1 ? { ...step, status: 'loading' } : step
+      const totalFunctions = (() => {
+        try {
+          return apiServices.parseArchitectureJSON(architectureJson).functions.length;
+        } catch {
+          return 0;
+        }
+      })();
+
+      setCurrentSteps(prev => prev.map((step, index) =>
+        index === 1
+          ? { ...step, status: 'loading', description: `Implementing functions (0/${totalFunctions})` }
+          : step
       ));
 
-      const implementedFunctions = await apiServices.implementFunctionsFromJSON(architectureJson, userRequest);
+      const implementedFunctions = await apiServices.implementFunctionsFromJSON(
+        architectureJson,
+        userRequest,
+        (completed, total) => {
+          setCurrentSteps(prev => prev.map((step, index) =>
+            index === 1
+              ? { ...step, description: `Implementing functions (${completed}/${total})` }
+              : step
+          ));
+        }
+      );
 
-      setCurrentSteps(prev => prev.map((step, index) => 
-        index === 1 ? { ...step, status: 'completed', content: `Implemented ${implementedFunctions.length} functions` } : step
+      setCurrentSteps(prev => prev.map((step, index) =>
+        index === 1
+          ? {
+              ...step,
+              status: 'completed',
+              description: `Implemented ${implementedFunctions.length} functions`,
+              content: `Implemented ${implementedFunctions.length} functions`
+            }
+          : step
       ));
 
       // Step 3: Build Contract
