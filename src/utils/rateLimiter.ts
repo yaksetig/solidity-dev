@@ -21,8 +21,8 @@ export class RateLimiter {
   private windowStart = Date.now();
 
   constructor(config: RateLimitConfig = {
-    requestsPerMinute: 1, // OpenRouter free tier: 1 request per minute
-    retryDelaySeconds: 61, // Wait 61 seconds between requests
+    requestsPerMinute: 100, // Claude Sonnet 4 has much higher limits
+    retryDelaySeconds: 3, // Faster requests for paid tier
     maxRetries: 3
   }) {
     this.config = config;

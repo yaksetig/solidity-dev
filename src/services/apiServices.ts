@@ -38,8 +38,8 @@ export class APIServices {
   constructor(openrouterKey: string) {
     this.openrouterKey = openrouterKey;
     this.rateLimiter = new RateLimiter({
-      requestsPerMinute: 20,
-      retryDelaySeconds: 5,
+      requestsPerMinute: 100, // Claude Sonnet 4 has much higher limits
+      retryDelaySeconds: 3, // Faster requests
       maxRetries: 3
     });
   }
@@ -120,7 +120,7 @@ Output ONLY valid JSON with the exact format specified.`
             }
           ],
           temperature: 0.1,
-          max_tokens: 3000,
+          max_tokens: 8000, // Much higher for complete JSON responses
         }),
       });
 
@@ -145,6 +145,13 @@ Output ONLY valid JSON with the exact format specified.`
       }
       
       const jsonStr = cleanedJson.substring(startIndex, lastIndex + 1);
+      
+      // Validate JSON is complete before parsing
+      const braceCount = (jsonStr.match(/\{/g) || []).length - (jsonStr.match(/\}/g) || []).length;
+      if (braceCount !== 0) {
+        throw new Error(`Incomplete JSON detected (unmatched braces: ${braceCount}). The response may have been truncated. Try again with a simpler request.`);
+      }
+      
       const parsed = JSON.parse(jsonStr);
       
       if (!parsed.functions || !Array.isArray(parsed.functions)) {
@@ -153,6 +160,9 @@ Output ONLY valid JSON with the exact format specified.`
       
       return parsed as ArchitectureJSON;
     } catch (error) {
+      if (error instanceof SyntaxError) {
+        throw new Error(`JSON parsing failed - response may be truncated. Try simplifying your contract requirements. Error: ${error.message}`);
+      }
       throw new Error(`Failed to parse architecture JSON: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }

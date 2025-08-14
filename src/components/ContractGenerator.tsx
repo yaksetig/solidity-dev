@@ -361,31 +361,8 @@ Your smart contract is ready! You can now deploy it to any Ethereum-compatible n
                     <span className="text-xs text-muted-foreground">Generating...</span>
                   </div>
                   
-                  <Card className="p-4 bg-gradient-card border-border/50">
+                   <Card className="p-4 bg-gradient-card border-border/50">
                      <div className="space-y-3">
-                       {/* Rate Limit Status */}
-                       {rateLimitStatus.isWaiting && (
-                         <div className="p-3 bg-warning/10 border border-warning/20 rounded-lg">
-                           <div className="flex items-center justify-between">
-                             <div className="flex items-center space-x-2">
-                               <Loader2 className="h-4 w-4 animate-spin text-warning" />
-                               <span className="text-sm font-medium text-warning-foreground">
-                                 Rate Limiting Active
-                               </span>
-                             </div>
-                             <Badge variant="warning" className="text-xs">
-                               Queue: {rateLimitStatus.queueLength}
-                             </Badge>
-                           </div>
-                           <div className="mt-2 text-xs text-warning-foreground/80">
-                             {rateLimitStatus.estimatedWaitTime > 0 && (
-                               <p>Estimated wait: {rateLimitStatus.formatTime(rateLimitStatus.estimatedWaitTime)}</p>
-                             )}
-                             <p>OpenRouter free tier: 1 request/minute • {rateLimitStatus.requestCount}/1 used this minute</p>
-                           </div>
-                         </div>
-                       )}
-                       
                        {currentSteps.map((step, index) => (
                          <div key={step.id} className="flex items-center space-x-3">
                            <div className="flex-shrink-0">
