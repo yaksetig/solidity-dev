@@ -4,7 +4,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Code, CheckCircle, AlertCircle, Settings, Brain, Zap, TestTube, CheckCircle2, Copy, Bot, User } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Loader2, Send, Code, CheckCircle, AlertCircle, Settings, Brain, Zap, TestTube, CheckCircle2, Copy, Bot, User, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -43,6 +44,8 @@ const ContractGenerator = () => {
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
   const [apiServices, setApiServices] = useState<APIServices | null>(null);
   const [currentSteps, setCurrentSteps] = useState<GenerationStep[]>([]);
+  const [architectureJson, setArchitectureJson] = useState<string | null>(null);
+  const [isArchitectureExpanded, setIsArchitectureExpanded] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const rateLimitStatus = useRateLimitStatus(apiServices);
 
@@ -155,6 +158,7 @@ const ContractGenerator = () => {
       ));
 
       const architectureJson = await apiServices.callOpenRouterArchitect(userRequest);
+      setArchitectureJson(architectureJson);
 
       setCurrentSteps(prev => prev.map((step, index) => 
         index === 0 ? { ...step, status: 'completed', content: architectureJson } : step
@@ -244,6 +248,20 @@ Your smart contract is ready! You can now deploy it to any Ethereum-compatible n
     toast.success("Copied to clipboard!");
   };
 
+  const extractSolidityCode = (content: string): string | null => {
+    const solidityMatch = content.match(/```solidity\n([\s\S]*?)\n```/);
+    return solidityMatch ? solidityMatch[1].trim() : null;
+  };
+
+  const copySolidityCode = (content: string) => {
+    const solidityCode = extractSolidityCode(content);
+    if (solidityCode) {
+      copyToClipboard(solidityCode);
+    } else {
+      copyToClipboard(content);
+    }
+  };
+
   const getStepIcon = (status: GenerationStep['status'], stepId: string) => {
     const iconMap = {
       architecture: Zap,
@@ -320,33 +338,98 @@ Your smart contract is ready! You can now deploy it to any Ethereum-compatible n
                     </span>
                   </div>
                   
-                  <Card className="p-4 bg-gradient-card border-border/50">
-                    <div className="prose prose-sm max-w-none dark:prose-invert [&>pre]:bg-muted [&>pre]:p-3 [&>pre]:rounded [&>pre]:overflow-x-auto [&>code]:bg-muted [&>code]:px-1 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeHighlight]}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
-                    
-                    {message.role === 'assistant' && (
-                      <div className="flex justify-end mt-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => copyToClipboard(message.content)}
-                          className="text-xs"
-                        >
-                          <Copy className="h-3 w-3 mr-1" />
-                          Copy
-                        </Button>
-                      </div>
-                    )}
-                  </Card>
+                   <Card className="p-4 bg-gradient-card border-border/50 relative">
+                     <div className="prose prose-sm max-w-none dark:prose-invert [&>pre]:bg-muted [&>pre]:p-3 [&>pre]:rounded [&>pre]:overflow-x-auto [&>code]:bg-muted [&>code]:px-1 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>pre>code]:text-xs [&>pre]:text-xs">
+                       <ReactMarkdown
+                         remarkPlugins={[remarkGfm]}
+                         rehypePlugins={[rehypeHighlight]}
+                       >
+                         {message.content}
+                       </ReactMarkdown>
+                     </div>
+                     
+                     {message.role === 'assistant' && (
+                       <div className="flex justify-end mt-3 space-x-2">
+                         {extractSolidityCode(message.content) && (
+                           <Button
+                             variant="ghost"
+                             size="sm"
+                             onClick={() => copySolidityCode(message.content)}
+                             className="text-xs"
+                           >
+                             <Copy className="h-3 w-3 mr-1" />
+                             Copy Solidity
+                           </Button>
+                         )}
+                         <Button
+                           variant="ghost"
+                           size="sm"
+                           onClick={() => copyToClipboard(message.content)}
+                           className="text-xs"
+                         >
+                           <Copy className="h-3 w-3 mr-1" />
+                           Copy All
+                         </Button>
+                       </div>
+                     )}
+                   </Card>
                 </div>
               </div>
             ))}
+
+            {/* Architecture JSON Display */}
+            {architectureJson && (
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center">
+                  <Brain className="h-4 w-4 text-white" />
+                </div>
+                
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <span className="text-sm font-medium text-foreground">Contract Architecture</span>
+                    <Badge variant="success" className="text-xs">Generated</Badge>
+                  </div>
+                  
+                  <Card className="bg-gradient-card border-border/50">
+                    <Collapsible open={isArchitectureExpanded} onOpenChange={setIsArchitectureExpanded}>
+                      <CollapsibleTrigger className="w-full p-4 text-left">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium">📋 Contract Architecture</span>
+                            <span className="text-xs text-muted-foreground">(Click to expand)</span>
+                          </div>
+                          {isArchitectureExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="px-4 pb-4">
+                          <div className="bg-muted rounded-lg p-3 overflow-x-auto">
+                            <pre className="text-xs text-foreground whitespace-pre-wrap">
+                              {JSON.stringify(JSON.parse(architectureJson), null, 2)}
+                            </pre>
+                          </div>
+                          <div className="flex justify-end mt-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => copyToClipboard(architectureJson)}
+                              className="text-xs"
+                            >
+                              <Copy className="h-3 w-3 mr-1" />
+                              Copy JSON
+                            </Button>
+                          </div>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </Card>
+                </div>
+              </div>
+            )}
 
             {/* Generation Steps */}
             {isGenerating && currentSteps.length > 0 && (
