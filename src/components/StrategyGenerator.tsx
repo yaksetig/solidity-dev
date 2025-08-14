@@ -38,20 +38,20 @@ const StrategyGenerator = () => {
   const [steps, setSteps] = useState<GenerationStep[]>([
     {
       id: 'strategy',
-      title: 'Generate Crypto Strategy',
-      description: 'AI creates a 4-hour interval crypto trading strategy for your selected asset',
+      title: 'Generate Trading Strategy',
+      description: 'AI creates a pure trading strategy focusing on market analysis and logic (no code)',
       status: 'pending'
     },
     {
       id: 'planning',
-      title: 'Single-File Architecture',
-      description: 'Design a complete implementation plan for a single Python file',
+      title: 'Function Architecture',
+      description: 'Convert strategy into function signatures and architectural blueprint',
       status: 'pending'
     },
     {
       id: 'coding',
-      title: 'Generate Native Code',
-      description: 'Create a complete Python script using only native libraries',
+      title: 'Generate Code + Backtest Engine',
+      description: 'Create complete Python script with backtesting capabilities using native libraries',
       status: 'pending'
     },
     {

@@ -35,29 +35,33 @@ export class APIServices {
         messages: [
           {
             role: 'system',
-            content: `You are a quantitative crypto trading strategist. Generate detailed algorithmic trading strategies for SINGLE CRYPTOCURRENCY trading on 4-hour intervals. Your strategy must be implementable in a SINGLE Python file using ONLY native Python libraries (no external imports).
+            content: `You are a professional crypto trading strategist. Create comprehensive trading strategies that focus purely on market analysis and trading logic. DO NOT mention any technical implementation details, programming languages, or coding concepts.
 
 Required sections:
-1. STRATEGY OVERVIEW: Name and description for 4h crypto trading
-2. TARGET ASSET: ONE specific cryptocurrency (${asset})
-3. DATA SOURCE: Specific crypto exchange REST API endpoints (no libraries needed)
-4. TECHNICAL INDICATORS: Mathematical formulas using only basic math operations
-5. ENTRY CONDITIONS: Precise conditions based on 4h candle data
-6. EXIT CONDITIONS: Stop-loss and take-profit rules
-7. RISK MANAGEMENT: Position sizing as percentage of capital
-8. NATIVE IMPLEMENTATION: How to implement using only urllib, json, time, math modules
+1. STRATEGY OVERVIEW: Name and core trading philosophy for 4h crypto trading
+2. TARGET ASSET: ONE specific cryptocurrency (${asset}) and market characteristics
+3. MARKET ANALYSIS: Key market conditions and patterns to identify
+4. TECHNICAL INDICATORS: Conceptual indicators and their trading significance (e.g., "moving averages to identify trend direction")
+5. ENTRY CONDITIONS: Clear market signals that trigger buy decisions
+6. EXIT CONDITIONS: Clear market signals for stop-loss and take-profit
+7. RISK MANAGEMENT: Position sizing philosophy and risk tolerance
+8. MARKET TIMING: Why 4-hour timeframes work for this strategy
 
-Focus on strategies that work with 4-hour timeframes and can be coded in a single Python file.`
+Focus on pure trading strategy without any mention of APIs, code, libraries, or technical implementation.`
           },
           {
             role: 'user',
-            content: `Generate a crypto trading strategy for ${asset} using 4-hour intervals. The strategy must:
-- Target ONE specific cryptocurrency: ${asset}
-- Use 4-hour candlestick data
-- Be implementable in a single Python file
-- Use ONLY native Python libraries (urllib, json, time, math)
-- Include specific API endpoints for data fetching
-- Provide exact mathematical formulas for indicators
+            content: `Create a comprehensive crypto trading strategy for ${asset} using 4-hour intervals. Focus purely on the trading logic and market analysis:
+
+- Target cryptocurrency: ${asset}
+- Trading timeframe: 4-hour candlesticks
+- Market conditions and patterns to identify
+- Technical indicators and their significance
+- Entry and exit decision criteria
+- Risk management approach
+- Strategy rationale and market timing
+
+DO NOT include any technical implementation details, code, or programming concepts. Focus on pure trading strategy.
 
 ${prompt}`
           }
@@ -93,33 +97,38 @@ ${prompt}`
         messages: [
           {
             role: 'system',
-            content: `You are a Python architect specializing in single-file crypto trading bots. Convert trading strategies into implementation plans for SINGLE Python files using ONLY native libraries.
+            content: `You are a software architect specializing in function design. Convert trading strategies into clear function signatures and architectural blueprints.
 
-Your plan must specify:
-1. SINGLE FILE STRUCTURE: All code in one main.py file
-2. NATIVE MODULES ONLY: urllib.request, json, time, math, datetime
-3. API INTEGRATION: Direct HTTP requests using urllib
-4. DATA PROCESSING: Manual implementation of indicators
-5. EXECUTION LOGIC: Step-by-step trading decisions
-6. ERROR HANDLING: Try/except blocks for network requests
-7. CONFIGURATION: Hardcoded or simple variable settings
-8. MAIN LOOP: 4-hour interval execution structure
+Your output must specify:
+1. FUNCTION SIGNATURES: Name, parameters, and return types for each function
+2. DATA FLOW: How data moves between functions
+3. CORE FUNCTIONS: Essential functions needed for the strategy
+4. INPUT/OUTPUT SPECIFICATIONS: What each function receives and returns
+5. ARCHITECTURE OVERVIEW: How functions work together
+6. DATA STRUCTURES: Key data formats used throughout
 
-NO external dependencies. NO separate files. ALL functionality in ONE file.`
+Focus ONLY on function names, signatures, and architecture. DO NOT provide implementation details or actual code.`
           },
           {
             role: 'user',
-            content: `Create a detailed implementation plan for this single-file crypto trading strategy:
+            content: `Convert this trading strategy into a functional architecture blueprint:
 
 ${strategy}
 
-The plan must focus on:
-1. Single Python file architecture
-2. Native library usage only (urllib, json, time, math)
-3. 4-hour interval execution
-4. Direct API calls for crypto data
-5. Manual indicator calculations
-6. Complete trading logic in one file`
+Create function signatures and architecture for:
+1. DATA FETCHING FUNCTIONS: Function names, parameters, and return types for getting market data
+2. INDICATOR FUNCTIONS: Function signatures for calculating technical indicators
+3. STRATEGY FUNCTIONS: Functions for entry/exit decision logic
+4. RISK MANAGEMENT FUNCTIONS: Functions for position sizing and risk control
+5. MAIN ORCHESTRATION: High-level function that coordinates everything
+6. DATA STRUCTURES: Key data formats passed between functions
+
+Provide ONLY function signatures like:
+- get_market_data(symbol: str, timeframe: str) -> List[Dict]
+- calculate_moving_average(prices: List[float], period: int) -> float
+- check_entry_signal(data: Dict) -> bool
+
+NO implementation details, NO actual code, ONLY function signatures and architecture.`
           }
         ],
         temperature: 0.1,
@@ -147,37 +156,51 @@ The plan must focus on:
         messages: [
           {
             role: 'system',
-            content: `You are a Python developer creating single-file crypto trading bots. Generate a complete Python script that:
+            content: `You are a Python developer creating comprehensive crypto trading bots with backtesting capabilities. Generate a complete Python script that includes BOTH live trading and backtesting functionality.
 
 REQUIREMENTS:
-- Single file with ALL functionality
+- Single file with ALL functionality including backtesting engine
 - Uses ONLY: urllib.request, json, time, math, datetime, os
 - Makes direct HTTP requests to crypto APIs
 - Implements technical indicators with basic math
 - Runs on 4-hour intervals
-- Includes proper error handling
-- Has clear comments and docstrings
+- CRITICAL: Includes comprehensive backtesting engine with historical data
+- Performance metrics: Sharpe ratio, max drawdown, win rate, total return
+- Backtest visualization and results reporting
+- Mode switching between live trading and backtesting
+
+BACKTESTING REQUIREMENTS:
+- Fetch historical price data for backtesting
+- Simulate trades based on strategy signals
+- Calculate performance metrics and statistics
+- Generate backtest report with key metrics
+- Include data visualization (ASCII charts if needed)
 
 OUTPUT FORMAT:
 - Generate ONLY Python code
 - No markdown, no explanations
-- Complete executable script
+- Complete executable script with backtesting
 - All functions in one file`
           },
           {
             role: 'user',
-            content: `Generate a complete single-file Python trading bot based on this plan:
+            content: `Generate a complete single-file Python trading bot with comprehensive backtesting based on this architecture:
 
 ${plan}
 
-Ensure the code:
-1. Is a complete, executable Python script
-2. Uses only native libraries (urllib.request, json, time, math, datetime)
+Ensure the code includes:
+1. Complete executable Python script with backtesting engine
+2. Uses only native libraries (urllib.request, json, time, math, datetime, os)
 3. Implements all indicators manually
 4. Makes direct HTTP requests for crypto data
-5. Runs on 4-hour intervals
-6. Includes error handling and logging
-7. Has clear structure and comments`
+5. CRITICAL: Full backtesting functionality with historical data
+6. Performance metrics calculation (Sharpe ratio, max drawdown, win rate)
+7. Mode switching between live trading and backtesting
+8. Backtest results reporting and visualization
+9. Error handling and logging for both modes
+10. Clear structure with docstrings and comments
+
+The script must be able to run backtests to validate strategy performance before live trading.`
           }
         ],
         temperature: 0.05,
