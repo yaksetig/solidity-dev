@@ -189,6 +189,29 @@ Output ONLY valid JSON with the exact format specified.`
     }
   }
 
+  async implementFunctionsFromJSON(architectureJson: string, strategy: string): Promise<{ name: string; code: string }[]> {
+    // Parse the JSON directly
+    const architecture = this.parseArchitectureJSON(architectureJson);
+    const implementedFunctions: { name: string; code: string }[] = [];
+    
+    // Implement each function individually
+    for (const func of architecture.functions) {
+      try {
+        const functionCode = await this.implementFunction(func, strategy, architecture.functions);
+        implementedFunctions.push({ name: func.name, code: functionCode });
+      } catch (error) {
+        console.error(`Failed to implement ${func.name}:`, error);
+        // Add error placeholder function
+        implementedFunctions.push({ 
+          name: func.name, 
+          code: `def ${func.name}():\n    """ERROR: Failed to implement ${func.name}\n    ${error instanceof Error ? error.message : 'Unknown error'}\n    """\n    raise NotImplementedError("Function implementation failed")`
+        });
+      }
+    }
+    
+    return implementedFunctions;
+  }
+
   async implementFunction(functionSig: FunctionSignature, strategy: string, allFunctions: FunctionSignature[]): Promise<string> {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -249,7 +272,7 @@ Implement ONLY this function with proper error handling and documentation. Use o
     return data.choices[0]?.message?.content || 'No implementation generated';
   }
 
-  aggregateCode(implementedFunctions: { name: string; code: string }[], architecture: ArchitectureJSON, strategy: string): string {
+  aggregateCode(implementedFunctions: { name: string; code: string }[], strategy: string): string {
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
     
     // Build the aggregated code string

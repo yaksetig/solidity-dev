@@ -47,25 +47,19 @@ const StrategyGenerator = () => {
     },
     {
       id: 'architecture',
-      title: 'Generate JSON Architecture',
+      title: 'Generate Architecture',
       description: 'Convert strategy into structured JSON with function signatures and dependencies',
-      status: 'pending'
-    },
-    {
-      id: 'parsing',
-      title: 'Parse Function Signatures',
-      description: 'Extract and validate individual function signatures from JSON architecture',
       status: 'pending'
     },
     {
       id: 'implementation',
       title: 'Implement Functions',
-      description: 'AI implements each function individually to avoid context limitations',
+      description: 'AI implements each function individually from the JSON architecture',
       status: 'pending'
     },
     {
       id: 'aggregation',
-      title: 'Aggregate & Build Final Code',
+      title: 'Build Final Code',
       description: 'Combine all implemented functions into single Python file with backtesting engine',
       status: 'pending'
     },
@@ -141,89 +135,54 @@ const StrategyGenerator = () => {
         index === 1 ? { ...step, status: 'completed', content: architectureJson } : step
       ));
 
-      // Step 3: Parse JSON Architecture
+      // Step 3: Implement Functions Directly from JSON
       setSteps(prev => prev.map((step, index) => 
         index === 2 ? { ...step, status: 'loading' } : step
       ));
 
-      const architecture = apiServices.parseArchitectureJSON(architectureJson);
-      const parseContent = `✅ Successfully parsed ${architecture.functions.length} functions:\n${architecture.functions.map(f => `• ${f.name}: ${f.purpose}`).join('\n')}`;
-
-      setSteps(prev => prev.map((step, index) => 
-        index === 2 ? { ...step, status: 'completed', content: parseContent } : step
-      ));
-
-      // Step 4: Implement Functions Individually
-      setSteps(prev => prev.map((step, index) => 
-        index === 3 ? { ...step, status: 'loading' } : step
-      ));
-
-      const implementedFunctions: { name: string; code: string }[] = [];
-      
-      for (let i = 0; i < architecture.functions.length; i++) {
-        const func = architecture.functions[i];
-        
-        // Update progress
-        const progressContent = `Implementing function ${i + 1}/${architecture.functions.length}: ${func.name}\n\nCompleted:\n${implementedFunctions.map(f => `✅ ${f.name}`).join('\n')}\n\nCurrent: 🔄 ${func.name}\nRemaining: ${architecture.functions.slice(i + 1).map(f => `⏳ ${f.name}`).join('\n')}`;
-        
-        setSteps(prev => prev.map((step, index) => 
-          index === 3 ? { ...step, content: progressContent } : step
-        ));
-
-        try {
-          const functionCode = await apiServices.implementFunction(func, strategy, architecture.functions);
-          implementedFunctions.push({ name: func.name, code: functionCode });
-        } catch (error) {
-          console.error(`Failed to implement ${func.name}:`, error);
-          // Continue with other functions
-          implementedFunctions.push({ 
-            name: func.name, 
-            code: `# ERROR: Failed to implement ${func.name}\n# ${error instanceof Error ? error.message : 'Unknown error'}\n\ndef ${func.name}():\n    raise NotImplementedError("Function implementation failed")`
-          });
-        }
-      }
+      const implementedFunctions = await apiServices.implementFunctionsFromJSON(architectureJson, strategy);
 
       const implementationContent = `✅ Function implementation completed!\n\nImplemented ${implementedFunctions.length} functions:\n${implementedFunctions.map(f => `• ${f.name}`).join('\n')}`;
       
       setSteps(prev => prev.map((step, index) => 
-        index === 3 ? { ...step, status: 'completed', content: implementationContent } : step
+        index === 2 ? { ...step, status: 'completed', content: implementationContent } : step
       ));
 
-      // Step 5: Aggregate Code
+      // Step 4: Build Final Code
+      setSteps(prev => prev.map((step, index) => 
+        index === 3 ? { ...step, status: 'loading' } : step
+      ));
+
+      const finalCode = apiServices.aggregateCode(implementedFunctions, strategy);
+
+      setSteps(prev => prev.map((step, index) => 
+        index === 3 ? { ...step, status: 'completed', content: finalCode } : step
+      ));
+
+      // Step 5: Code Quality Check
       setSteps(prev => prev.map((step, index) => 
         index === 4 ? { ...step, status: 'loading' } : step
-      ));
-
-      const finalCode = apiServices.aggregateCode(implementedFunctions, architecture, strategy);
-
-      setSteps(prev => prev.map((step, index) => 
-        index === 4 ? { ...step, status: 'completed', content: finalCode } : step
-      ));
-
-      // Step 6: Code Quality Check
-      setSteps(prev => prev.map((step, index) => 
-        index === 5 ? { ...step, status: 'loading' } : step
       ));
 
       const validation = apiServices.validateCode(finalCode);
 
       setSteps(prev => prev.map((step, index) => 
-        index === 5 ? { ...step, status: 'completed', content: validation } : step
+        index === 4 ? { ...step, status: 'completed', content: validation } : step
       ));
 
-      // Step 7: Railway API Test
+      // Step 6: Railway API Test
       setSteps(prev => prev.map((step, index) => 
-        index === 6 ? { ...step, status: 'loading' } : step
+        index === 5 ? { ...step, status: 'loading' } : step
       ));
 
       const executionResult = await apiServices.validateWithRailwayAPI(finalCode);
 
       setSteps(prev => prev.map((step, index) => 
-        index === 6 ? { ...step, status: 'completed', content: executionResult } : step
+        index === 5 ? { ...step, status: 'completed', content: executionResult } : step
       ));
 
       setIsGenerating(false);
-      toast.success("JSON-based strategy generation completed!");
+      toast.success("Strategy generation completed!");
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -262,8 +221,7 @@ const StrategyGenerator = () => {
     const labels = {
       strategy: 'Trading Strategy',
       architecture: 'JSON Architecture',
-      parsing: 'Parsed Functions',
-      implementation: 'Implementation Progress',
+      implementation: 'Implementation Results',
       aggregation: 'Final Python Code',
       validation: 'Validation Results',
       execution: 'Execution Results'
@@ -275,7 +233,6 @@ const StrategyGenerator = () => {
     const iconMap = {
       strategy: Brain,
       architecture: Zap,
-      parsing: Settings,
       implementation: Code,
       aggregation: CheckCircle,
       validation: TestTube,
