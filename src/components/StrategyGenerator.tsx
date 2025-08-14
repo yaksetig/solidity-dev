@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Play, Code, CheckCircle, AlertCircle, Settings, Brain, Zap, TestTube, CheckCircle2 } from "lucide-react";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { Loader2, Play, Code, CheckCircle, AlertCircle, Settings, Brain, Zap, TestTube, CheckCircle2, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import ApiKeyDialog from "@/components/ApiKeyDialog";
 import { APIServices } from "@/services/apiServices";
@@ -33,6 +34,7 @@ const StrategyGenerator = () => {
   const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
   const [apiServices, setApiServices] = useState<APIServices | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<string>('BTC');
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set());
   const [steps, setSteps] = useState<GenerationStep[]>([
     {
       id: 'strategy',
@@ -181,6 +183,29 @@ const StrategyGenerator = () => {
     }, 500);
   };
 
+  const toggleStepExpansion = (stepId: string) => {
+    setExpandedSteps(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(stepId)) {
+        newSet.delete(stepId);
+      } else {
+        newSet.add(stepId);
+      }
+      return newSet;
+    });
+  };
+
+  const getContentTypeLabel = (stepId: string) => {
+    const labels = {
+      strategy: 'Trading Strategy',
+      planning: 'Implementation Plan',
+      coding: 'Python Code',
+      validation: 'Validation Results',
+      execution: 'Execution Results'
+    };
+    return labels[stepId as keyof typeof labels] || 'Content';
+  };
+
   const getStepIcon = (status: GenerationStep['status'], stepId: string) => {
     const iconMap = {
       strategy: Brain,
@@ -302,22 +327,49 @@ const StrategyGenerator = () => {
                   </div>
                   
                    {step.content && (
-                     <div className="bg-muted/50 rounded-lg p-4 border">
-                       <div className="flex justify-between items-center mb-2">
-                         <span className="text-xs text-muted-foreground font-medium">Generated Content</span>
+                     <Collapsible>
+                       <CollapsibleTrigger asChild>
                          <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={() => navigator.clipboard.writeText(step.content || '')}
-                           className="text-xs"
+                           variant="ghost"
+                           className="w-full justify-between p-3 h-auto bg-muted/30 hover:bg-muted/50 border border-border/30 rounded-lg"
+                           onClick={() => toggleStepExpansion(step.id)}
                          >
-                           Copy {step.id === 'coding' ? 'Python Code' : 'Content'}
+                           <div className="flex items-center space-x-2">
+                             <span className="text-sm font-medium">
+                               View {getContentTypeLabel(step.id)}
+                             </span>
+                             <Badge variant="outline" className="text-xs">
+                               {step.content.length > 1000 ? `${Math.round(step.content.length / 1000)}k chars` : `${step.content.length} chars`}
+                             </Badge>
+                           </div>
+                           {expandedSteps.has(step.id) ? (
+                             <ChevronDown className="h-4 w-4 transition-transform duration-200" />
+                           ) : (
+                             <ChevronRight className="h-4 w-4 transition-transform duration-200" />
+                           )}
                          </Button>
-                       </div>
-                       <pre className="text-sm text-foreground whitespace-pre-wrap font-mono overflow-x-auto">
-                         {step.content}
-                       </pre>
-                     </div>
+                       </CollapsibleTrigger>
+                       <CollapsibleContent className="data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                         <div className="bg-muted/50 rounded-lg p-4 border mt-3">
+                           <div className="flex justify-between items-center mb-2">
+                             <span className="text-xs text-muted-foreground font-medium">
+                               {getContentTypeLabel(step.id)}
+                             </span>
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               onClick={() => navigator.clipboard.writeText(step.content || '')}
+                               className="text-xs"
+                             >
+                               Copy {step.id === 'coding' ? 'Python Code' : 'Content'}
+                             </Button>
+                           </div>
+                           <pre className="text-sm text-foreground whitespace-pre-wrap font-mono overflow-x-auto">
+                             {step.content}
+                           </pre>
+                         </div>
+                       </CollapsibleContent>
+                     </Collapsible>
                    )}
                 </div>
               </div>
