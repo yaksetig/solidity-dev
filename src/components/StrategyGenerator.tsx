@@ -6,6 +6,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Loader2, Play, Code, CheckCircle, AlertCircle, Settings, Brain, Zap, TestTube, CheckCircle2, ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
 import ApiKeyDialog from "@/components/ApiKeyDialog";
 import { APIServices } from "@/services/apiServices";
 import { hasAPIKeys, loadAPIKeys } from "@/utils/storage";
@@ -428,9 +431,14 @@ const StrategyGenerator = () => {
                                Copy {step.id === 'coding' ? 'Python Code' : 'Content'}
                              </Button>
                            </div>
-                           <pre className="text-sm text-foreground whitespace-pre-wrap font-mono overflow-x-auto">
-                             {step.content}
-                           </pre>
+                            <div className="prose prose-sm max-w-none dark:prose-invert [&>pre]:bg-muted [&>pre]:p-3 [&>pre]:rounded [&>pre]:overflow-x-auto [&>code]:bg-muted [&>code]:px-1 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm">
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                rehypePlugins={[rehypeHighlight]}
+                              >
+                                {step.content}
+                              </ReactMarkdown>
+                            </div>
                          </div>
                        </CollapsibleContent>
                      </Collapsible>
