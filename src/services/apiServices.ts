@@ -64,7 +64,7 @@ export class APIServices {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'meta/llama-3.1-8b-instruct',
+        model: 'openai/gpt-oss-20b',
         messages: [
           {
             role: 'system',
@@ -75,9 +75,9 @@ export class APIServices {
             content: `Create an implementation plan to hand out to a developer for this trading strategy: ${strategy}`
           }
         ],
-        temperature: 0.1,
-        top_p: 0.9,
-        max_tokens: 1024,
+        temperature: 1,
+        top_p: 1,
+        max_tokens: 4096,
       }),
     });
 
@@ -97,7 +97,7 @@ export class APIServices {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'meta/llama-3.1-70b-instruct',
+        model: 'openai/gpt-oss-20b',
         messages: [
           {
             role: 'system',
@@ -108,9 +108,9 @@ export class APIServices {
             content: `Generate Python code for this implementation plan: ${plan}. Only return Python code, no markdown or explanations.`
           }
         ],
-        temperature: 0.1,
-        top_p: 0.9,
-        max_tokens: 2048,
+        temperature: 1,
+        top_p: 1,
+        max_tokens: 4096,
       }),
     });
 
@@ -200,7 +200,7 @@ export class APIServices {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'meta/llama-3.1-8b-instruct',
+          model: 'openai/gpt-oss-20b',
           messages: [{ role: 'user', content: 'test' }],
           max_tokens: 1
         }),
