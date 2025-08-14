@@ -43,15 +43,27 @@ const StrategyGenerator = () => {
       status: 'pending'
     },
     {
-      id: 'planning',
-      title: 'Function Architecture',
-      description: 'Convert strategy into function signatures and architectural blueprint',
+      id: 'architecture',
+      title: 'Generate JSON Architecture',
+      description: 'Convert strategy into structured JSON with function signatures and dependencies',
       status: 'pending'
     },
     {
-      id: 'coding',
-      title: 'Generate Code + Backtest Engine',
-      description: 'Create complete Python script with backtesting capabilities using native libraries',
+      id: 'parsing',
+      title: 'Parse Function Signatures',
+      description: 'Extract and validate individual function signatures from JSON architecture',
+      status: 'pending'
+    },
+    {
+      id: 'implementation',
+      title: 'Implement Functions',
+      description: 'AI implements each function individually to avoid context limitations',
+      status: 'pending'
+    },
+    {
+      id: 'aggregation',
+      title: 'Aggregate & Build Final Code',
+      description: 'Combine all implemented functions into single Python file with backtesting engine',
       status: 'pending'
     },
     {
@@ -115,52 +127,100 @@ const StrategyGenerator = () => {
         index === 0 ? { ...step, status: 'completed', content: strategy } : step
       ));
 
-      // Step 2: Implementation Planning with OpenRouter
+      // Step 2: JSON Architecture Generation
       setSteps(prev => prev.map((step, index) => 
         index === 1 ? { ...step, status: 'loading' } : step
       ));
 
-      const plan = await apiServices.callOpenRouterPlanning(strategy);
+      const architectureJson = await apiServices.callOpenRouterArchitect(strategy);
 
       setSteps(prev => prev.map((step, index) => 
-        index === 1 ? { ...step, status: 'completed', content: plan } : step
+        index === 1 ? { ...step, status: 'completed', content: architectureJson } : step
       ));
 
-      // Step 3: Code Generation with OpenRouter
+      // Step 3: Parse JSON Architecture
       setSteps(prev => prev.map((step, index) => 
         index === 2 ? { ...step, status: 'loading' } : step
       ));
 
-      const code = await apiServices.callOpenRouterCodegen(plan);
+      const architecture = apiServices.parseArchitectureJSON(architectureJson);
+      const parseContent = `✅ Successfully parsed ${architecture.functions.length} functions:\n${architecture.functions.map(f => `• ${f.name}: ${f.purpose}`).join('\n')}`;
 
       setSteps(prev => prev.map((step, index) => 
-        index === 2 ? { ...step, status: 'completed', content: code } : step
+        index === 2 ? { ...step, status: 'completed', content: parseContent } : step
       ));
 
-      // Step 4: Code Quality Check
+      // Step 4: Implement Functions Individually
       setSteps(prev => prev.map((step, index) => 
         index === 3 ? { ...step, status: 'loading' } : step
       ));
 
-      const validation = apiServices.validateCode(code);
+      const implementedFunctions: { name: string; code: string }[] = [];
+      
+      for (let i = 0; i < architecture.functions.length; i++) {
+        const func = architecture.functions[i];
+        
+        // Update progress
+        const progressContent = `Implementing function ${i + 1}/${architecture.functions.length}: ${func.name}\n\nCompleted:\n${implementedFunctions.map(f => `✅ ${f.name}`).join('\n')}\n\nCurrent: 🔄 ${func.name}\nRemaining: ${architecture.functions.slice(i + 1).map(f => `⏳ ${f.name}`).join('\n')}`;
+        
+        setSteps(prev => prev.map((step, index) => 
+          index === 3 ? { ...step, content: progressContent } : step
+        ));
 
+        try {
+          const functionCode = await apiServices.implementFunction(func, strategy, architecture.functions);
+          implementedFunctions.push({ name: func.name, code: functionCode });
+        } catch (error) {
+          console.error(`Failed to implement ${func.name}:`, error);
+          // Continue with other functions
+          implementedFunctions.push({ 
+            name: func.name, 
+            code: `# ERROR: Failed to implement ${func.name}\n# ${error instanceof Error ? error.message : 'Unknown error'}\n\ndef ${func.name}():\n    raise NotImplementedError("Function implementation failed")`
+          });
+        }
+      }
+
+      const implementationContent = `✅ Function implementation completed!\n\nImplemented ${implementedFunctions.length} functions:\n${implementedFunctions.map(f => `• ${f.name}`).join('\n')}`;
+      
       setSteps(prev => prev.map((step, index) => 
-        index === 3 ? { ...step, status: 'completed', content: validation } : step
+        index === 3 ? { ...step, status: 'completed', content: implementationContent } : step
       ));
 
-      // Step 5: Railway API Test
+      // Step 5: Aggregate Code
       setSteps(prev => prev.map((step, index) => 
         index === 4 ? { ...step, status: 'loading' } : step
       ));
 
-      const executionResult = await apiServices.validateWithRailwayAPI(code);
+      const finalCode = apiServices.aggregateCode(implementedFunctions, architecture, strategy);
 
       setSteps(prev => prev.map((step, index) => 
-        index === 4 ? { ...step, status: 'completed', content: executionResult } : step
+        index === 4 ? { ...step, status: 'completed', content: finalCode } : step
+      ));
+
+      // Step 6: Code Quality Check
+      setSteps(prev => prev.map((step, index) => 
+        index === 5 ? { ...step, status: 'loading' } : step
+      ));
+
+      const validation = apiServices.validateCode(finalCode);
+
+      setSteps(prev => prev.map((step, index) => 
+        index === 5 ? { ...step, status: 'completed', content: validation } : step
+      ));
+
+      // Step 7: Railway API Test
+      setSteps(prev => prev.map((step, index) => 
+        index === 6 ? { ...step, status: 'loading' } : step
+      ));
+
+      const executionResult = await apiServices.validateWithRailwayAPI(finalCode);
+
+      setSteps(prev => prev.map((step, index) => 
+        index === 6 ? { ...step, status: 'completed', content: executionResult } : step
       ));
 
       setIsGenerating(false);
-      toast.success("Real strategy generation completed!");
+      toast.success("JSON-based strategy generation completed!");
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -198,8 +258,10 @@ const StrategyGenerator = () => {
   const getContentTypeLabel = (stepId: string) => {
     const labels = {
       strategy: 'Trading Strategy',
-      planning: 'Implementation Plan',
-      coding: 'Python Code',
+      architecture: 'JSON Architecture',
+      parsing: 'Parsed Functions',
+      implementation: 'Implementation Progress',
+      aggregation: 'Final Python Code',
       validation: 'Validation Results',
       execution: 'Execution Results'
     };
@@ -209,8 +271,10 @@ const StrategyGenerator = () => {
   const getStepIcon = (status: GenerationStep['status'], stepId: string) => {
     const iconMap = {
       strategy: Brain,
-      planning: Zap,
-      coding: Code,
+      architecture: Zap,
+      parsing: Settings,
+      implementation: Code,
+      aggregation: CheckCircle,
       validation: TestTube,
       execution: CheckCircle2
     };
