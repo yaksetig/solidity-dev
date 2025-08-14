@@ -31,7 +31,7 @@ export class APIServices {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
+        model: 'sonar-pro',
         messages: [
           {
             role: 'system',
@@ -44,12 +44,7 @@ export class APIServices {
         ],
         temperature: 0.2,
         top_p: 0.9,
-        max_tokens: 1000,
-        return_images: false,
-        return_related_questions: false,
-        search_recency_filter: 'month',
-        frequency_penalty: 1,
-        presence_penalty: 0
+        max_tokens: 1000
       }),
     });
 
@@ -186,7 +181,7 @@ export class APIServices {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'llama-3.1-sonar-small-128k-online',
+          model: 'sonar-pro',
           messages: [{ role: 'user', content: 'test' }],
           max_tokens: 1
         }),
