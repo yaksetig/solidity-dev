@@ -263,18 +263,58 @@ Your smart contract is ready! You can now deploy it to any Ethereum-compatible n
     toast.success("Copied to clipboard!");
   };
 
-  const extractSolidityCode = (content: string): string | null => {
-    const solidityMatch = content.match(/```solidity\n([\s\S]*?)\n```/);
-    return solidityMatch ? solidityMatch[1].trim() : null;
-  };
+  const MarkdownRenderer = ({ content }: { content: string }) => {
+    const [isCodeExpanded, setIsCodeExpanded] = useState(false);
 
-  const copySolidityCode = (content: string) => {
-    const solidityCode = extractSolidityCode(content);
-    if (solidityCode) {
-      copyToClipboard(solidityCode);
-    } else {
-      copyToClipboard(content);
-    }
+    return (
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight]}
+        components={{
+          code({ node, inline, className, children, ...props }) {
+            const codeString = String(children).trim();
+            if (inline) {
+              return (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              );
+            }
+            return (
+              <Collapsible open={isCodeExpanded} onOpenChange={setIsCodeExpanded}>
+                <div className="flex items-center justify-between bg-muted px-3 py-2 rounded-t">
+                  <CollapsibleTrigger className="flex items-center space-x-1 text-xs font-medium">
+                    <span>Smart Contract Code</span>
+                    {isCodeExpanded ? (
+                      <ChevronDown className="h-3 w-3" />
+                    ) : (
+                      <ChevronRight className="h-3 w-3" />
+                    )}
+                  </CollapsibleTrigger>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-1"
+                    onClick={() => copyToClipboard(codeString)}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+                <CollapsibleContent>
+                  <pre
+                    className={`${className} p-3 bg-muted rounded-b overflow-x-auto text-xs`}
+                  >
+                    <code {...props}>{children}</code>
+                  </pre>
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          },
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    );
   };
 
   const getStepIcon = (status: GenerationStep['status'], stepId: string) => {
@@ -355,27 +395,11 @@ Your smart contract is ready! You can now deploy it to any Ethereum-compatible n
                   
                    <Card className="p-4 bg-gradient-card border-border/50 relative">
                      <div className="prose prose-sm max-w-none dark:prose-invert [&>pre]:bg-muted [&>pre]:p-3 [&>pre]:rounded [&>pre]:overflow-x-auto [&>code]:bg-muted [&>code]:px-1 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-sm [&>pre>code]:text-xs [&>pre]:text-xs">
-                       <ReactMarkdown
-                         remarkPlugins={[remarkGfm]}
-                         rehypePlugins={[rehypeHighlight]}
-                       >
-                         {message.content}
-                       </ReactMarkdown>
+                       <MarkdownRenderer content={message.content} />
                      </div>
-                     
+
                      {message.role === 'assistant' && (
                        <div className="flex justify-end mt-3 space-x-2">
-                         {extractSolidityCode(message.content) && (
-                           <Button
-                             variant="ghost"
-                             size="sm"
-                             onClick={() => copySolidityCode(message.content)}
-                             className="text-xs"
-                           >
-                             <Copy className="h-3 w-3 mr-1" />
-                             Copy Solidity
-                           </Button>
-                         )}
                          <Button
                            variant="ghost"
                            size="sm"
