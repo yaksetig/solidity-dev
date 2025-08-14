@@ -34,7 +34,7 @@ const ContractGenerator = () => {
     {
       id: '1',
       role: 'assistant',
-      content: 'Hello! I\'m your AI smart contract assistant. Describe the smart contract you\'d like me to create, and I\'ll generate complete Solidity code for you. For example:\n\n- "Create an ERC-20 token with staking rewards"\n- "Build a multi-signature wallet contract"\n- "Design a simple NFT marketplace"\n\nWhat would you like to build?',
+      content: "Hello! I'm your AI smart contract assistant. Describe the smart contract you'd like me to create, and I'll generate audited and tested Solidity code for you.",
       timestamp: new Date()
     }
   ]);
