@@ -88,9 +88,7 @@ const StrategyGenerator = () => {
     if (!apiServices) {
       const keys = loadAPIKeys();
       if (keys) {
-        setApiServices(new APIServices(keys.perplexity, keys.openrouter));
-        setShowApiKeyDialog(true);
-        return;
+        setApiServices(new APIServices(keys.openrouter));
       } else {
         setShowApiKeyDialog(true);
         return;
@@ -115,9 +113,8 @@ const StrategyGenerator = () => {
         index === 0 ? { ...step, status: 'loading' } : step
       ));
 
-      const strategy = await apiServices.callPerplexityAPI(
-        selectedAsset,
-        `Create a detailed algorithmic trading strategy focused on ${selectedAsset} cryptocurrency using 4-hour intervals. Include momentum indicators, volatility analysis, and risk management specific to crypto markets.`
+      const strategy = await apiServices.callOpenRouterArchitect(
+        `Create a detailed algorithmic trading strategy focused on ${selectedAsset} cryptocurrency using 4-hour intervals. Include momentum indicators, volatility analysis, and risk management specific to crypto markets. Focus on pure trading strategy and logic, not code implementation.`
       );
 
       setSteps(prev => prev.map((step, index) => 

@@ -1,5 +1,4 @@
 interface APIKeys {
-  perplexity: string;
   openrouter: string;
 }
 
@@ -30,7 +29,7 @@ export function loadAPIKeys(): APIKeys | null {
   try {
     const decrypted = simpleDecrypt(stored);
     const keys = JSON.parse(decrypted);
-    if (keys.perplexity && keys.openrouter) {
+    if (keys.openrouter) {
       return keys;
     }
   } catch (error) {

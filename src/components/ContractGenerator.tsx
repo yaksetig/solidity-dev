@@ -70,7 +70,7 @@ const ContractGenerator = () => {
     if (!apiServices) {
       const keys = loadAPIKeys();
       if (keys) {
-        setApiServices(new APIServices(keys.perplexity, keys.openrouter));
+        setApiServices(new APIServices(keys.openrouter));
       } else {
         setShowApiKeyDialog(true);
         return;
@@ -88,18 +88,12 @@ const ContractGenerator = () => {
     setInputValue('');
     setIsGenerating(true);
 
-    // Initialize generation steps
+    // Initialize generation steps (simplified to 5 steps)
     const steps: GenerationStep[] = [
-      {
-        id: 'analyze',
-        title: 'Analyze Request',
-        description: 'Understanding your smart contract requirements',
-        status: 'pending'
-      },
       {
         id: 'architecture',
         title: 'Generate Architecture',
-        description: 'Creating contract structure with function signatures',
+        description: 'Analyzing requirements and creating contract structure',
         status: 'pending'
       },
       {
@@ -153,76 +147,59 @@ const ContractGenerator = () => {
     if (!apiServices) return;
 
     try {
-      // Step 1: Analyze Request
+      // Step 1: Generate Architecture (with comprehensive analysis)
       setCurrentSteps(prev => prev.map((step, index) => 
         index === 0 ? { ...step, status: 'loading' } : step
       ));
 
-      const analysis = await apiServices.callPerplexityAPI(
-        'Solidity',
-        `Analyze this smart contract request and provide detailed requirements: ${userRequest}`
-      );
+      const architectureJson = await apiServices.callOpenRouterArchitect(userRequest);
 
       setCurrentSteps(prev => prev.map((step, index) => 
-        index === 0 ? { ...step, status: 'completed', content: analysis } : step
+        index === 0 ? { ...step, status: 'completed', content: architectureJson } : step
       ));
 
-      // Step 2: Generate Architecture
+      // Step 2: Implement Functions
       setCurrentSteps(prev => prev.map((step, index) => 
         index === 1 ? { ...step, status: 'loading' } : step
       ));
 
-      const architectureJson = await apiServices.callOpenRouterArchitect(analysis);
+      const implementedFunctions = await apiServices.implementFunctionsFromJSON(architectureJson, userRequest);
 
       setCurrentSteps(prev => prev.map((step, index) => 
-        index === 1 ? { ...step, status: 'completed', content: architectureJson } : step
+        index === 1 ? { ...step, status: 'completed', content: `Implemented ${implementedFunctions.length} functions` } : step
       ));
 
-      // Step 3: Implement Functions
+      // Step 3: Build Contract
       setCurrentSteps(prev => prev.map((step, index) => 
         index === 2 ? { ...step, status: 'loading' } : step
       ));
 
-      const implementedFunctions = await apiServices.implementFunctionsFromJSON(architectureJson, analysis);
+      const finalContract = apiServices.aggregateContract(implementedFunctions, userRequest);
 
       setCurrentSteps(prev => prev.map((step, index) => 
-        index === 2 ? { ...step, status: 'completed', content: `Implemented ${implementedFunctions.length} functions` } : step
+        index === 2 ? { ...step, status: 'completed', content: finalContract } : step
       ));
 
-      // Step 4: Build Contract
+      // Step 4: Compile Contract
       setCurrentSteps(prev => prev.map((step, index) => 
         index === 3 ? { ...step, status: 'loading' } : step
-      ));
-
-      const finalContract = apiServices.aggregateContract(implementedFunctions, analysis);
-
-      setCurrentSteps(prev => prev.map((step, index) => 
-        index === 3 ? { ...step, status: 'completed', content: finalContract } : step
-      ));
-
-      // Step 5: Compile Contract
-      setCurrentSteps(prev => prev.map((step, index) => 
-        index === 4 ? { ...step, status: 'loading' } : step
       ));
 
       const compilationResult = await apiServices.compileSolidityContract(finalContract);
 
       setCurrentSteps(prev => prev.map((step, index) => 
-        index === 4 ? { ...step, status: 'completed', content: compilationResult } : step
+        index === 3 ? { ...step, status: 'completed', content: compilationResult } : step
       ));
 
-      // Step 6: Display Results
+      // Step 5: Display Results
       setCurrentSteps(prev => prev.map((step, index) => 
-        index === 5 ? { ...step, status: 'completed' } : step
+        index === 4 ? { ...step, status: 'completed' } : step
       ));
 
       const successResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: `✅ **Smart Contract Generated Successfully!**
-
-## Contract Analysis
-${analysis}
 
 ## Generated Solidity Contract
 \`\`\`solidity
@@ -267,7 +244,6 @@ Your smart contract is ready! You can now deploy it to any Ethereum-compatible n
 
   const getStepIcon = (status: GenerationStep['status'], stepId: string) => {
     const iconMap = {
-      analyze: Brain,
       architecture: Zap,
       implementation: Code,
       contract: CheckCircle,
@@ -421,20 +397,31 @@ Your smart contract is ready! You can now deploy it to any Ethereum-compatible n
       <div className="border-t border-border bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="max-w-4xl mx-auto">
+            {!hasAPIKeys() && (
+              <div className="mb-4 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                <div className="flex items-center space-x-2 text-warning-foreground">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-sm font-medium">API Key Required</span>
+                </div>
+                <p className="text-xs text-warning-foreground/80 mt-1">
+                  Configure your OpenRouter API key to start generating smart contracts.
+                </p>
+              </div>
+            )}
             <div className="flex items-end space-x-3">
               <div className="flex-1">
                 <Input
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Describe the smart contract you want to create..."
-                  disabled={isGenerating}
+                  placeholder={hasAPIKeys() ? "Describe the smart contract you want to create..." : "Configure your API key first..."}
+                  disabled={isGenerating || !hasAPIKeys()}
                   className="min-h-[2.5rem] resize-none"
                 />
               </div>
               <Button
                 onClick={handleSendMessage}
-                disabled={isGenerating || !inputValue.trim()}
+                disabled={isGenerating || !inputValue.trim() || !hasAPIKeys()}
                 size="sm"
                 className="h-10 px-4"
               >

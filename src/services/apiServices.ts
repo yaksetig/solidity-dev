@@ -30,75 +30,12 @@ interface ArchitectureJSON {
 }
 
 export class APIServices {
-  private perplexityKey: string;
   private openrouterKey: string;
 
-  constructor(perplexityKey: string, openrouterKey: string) {
-    this.perplexityKey = perplexityKey;
+  constructor(openrouterKey: string) {
     this.openrouterKey = openrouterKey;
   }
 
-  async callPerplexityAPI(asset: string, prompt: string): Promise<string> {
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.perplexityKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'sonar-pro',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a professional crypto trading strategist. Create comprehensive trading strategies that focus purely on market analysis and trading logic. DO NOT mention any technical implementation details, programming languages, or coding concepts.
-
-Required sections:
-1. STRATEGY OVERVIEW: Name and core trading philosophy for 4h crypto trading
-2. TARGET ASSET: ONE specific cryptocurrency (${asset}) and market characteristics
-3. MARKET ANALYSIS: Key market conditions and patterns to identify
-4. TECHNICAL INDICATORS: Conceptual indicators and their trading significance (e.g., "moving averages to identify trend direction")
-5. ENTRY CONDITIONS: Clear market signals that trigger buy decisions
-6. EXIT CONDITIONS: Clear market signals for stop-loss and take-profit
-7. RISK MANAGEMENT: Position sizing philosophy and risk tolerance
-8. MARKET TIMING: Why 4-hour timeframes work for this strategy
-
-Focus on pure trading strategy without any mention of APIs, code, libraries, or technical implementation.`
-          },
-          {
-            role: 'user',
-            content: `Create a comprehensive crypto trading strategy for ${asset} using 4-hour intervals. Focus purely on the trading logic and market analysis:
-
-- Target cryptocurrency: ${asset}
-- Trading timeframe: 4-hour candlesticks
-- Market conditions and patterns to identify
-- Technical indicators and their significance
-- Entry and exit decision criteria
-- Risk management approach
-- Strategy rationale and market timing
-
-DO NOT include any technical implementation details, code, or programming concepts. Focus on pure trading strategy.
-
-${prompt}`
-          }
-        ],
-        temperature: 0.2,
-        top_p: 0.9,
-        max_tokens: 2000,
-        return_images: false,
-        return_related_questions: false,
-        search_recency_filter: 'month',
-        frequency_penalty: 1,
-        presence_penalty: 0
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Perplexity API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data: PerplexityResponse = await response.json();
-    return data.choices[0]?.message?.content || 'No strategy generated';
-  }
 
   async callOpenRouterArchitect(contractRequest: string): Promise<string> {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -841,27 +778,8 @@ The contract compiled successfully and is ready for deployment!`;
     }
   }
 
-  async testApiConnections(): Promise<{ perplexity: boolean; openrouter: boolean }> {
-    const results = { perplexity: false, openrouter: false };
-
-    // Test Perplexity
-    try {
-      await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${this.perplexityKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'sonar-pro',
-          messages: [{ role: 'user', content: 'test' }],
-          max_tokens: 1
-        }),
-      });
-      results.perplexity = true;
-    } catch (error) {
-      console.error('Perplexity API test failed:', error);
-    }
+  async testApiConnections(): Promise<{ openrouter: boolean }> {
+    const results = { openrouter: false };
 
     // Test OpenRouter
     try {
@@ -872,7 +790,7 @@ The contract compiled successfully and is ready for deployment!`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'openai/gpt-oss-20b',
+          model: 'qwen/qwen-2.5-coder-32b-instruct:free',
           messages: [{ role: 'user', content: 'test' }],
           max_tokens: 1
         }),

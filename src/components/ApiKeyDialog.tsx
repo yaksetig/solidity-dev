@@ -16,18 +16,15 @@ interface ApiKeyDialogProps {
 }
 
 const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) => {
-  const [perplexityKey, setPerplexityKey] = useState("");
   const [openrouterKey, setOpenrouterKey] = useState("");
   const [isTestingConnections, setIsTestingConnections] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<{
-    perplexity: boolean | null;
     openrouter: boolean | null;
-  }>({ perplexity: null, openrouter: null });
+  }>({ openrouter: null });
 
   const handleLoadSavedKeys = () => {
     const savedKeys = loadAPIKeys();
     if (savedKeys) {
-      setPerplexityKey(savedKeys.perplexity);
       setOpenrouterKey(savedKeys.openrouter);
       toast.success("Loaded saved API keys");
     } else {
@@ -36,27 +33,27 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
   };
 
   const handleTestConnections = async () => {
-    if (!perplexityKey.trim() || !openrouterKey.trim()) {
-      toast.error("Please enter both API keys");
+    if (!openrouterKey.trim()) {
+      toast.error("Please enter your OpenRouter API key");
       return;
     }
 
     setIsTestingConnections(true);
-    setConnectionStatus({ perplexity: null, openrouter: null });
+    setConnectionStatus({ openrouter: null });
 
     try {
-      const apiServices = new APIServices(perplexityKey.trim(), openrouterKey.trim());
+      const apiServices = new APIServices(openrouterKey.trim());
       const results = await apiServices.testApiConnections();
       
       setConnectionStatus(results);
       
-      if (results.perplexity && results.openrouter) {
-        toast.success("Both API connections successful!");
+      if (results.openrouter) {
+        toast.success("API connection successful!");
       } else {
-        toast.error("One or more API connections failed");
+        toast.error("API connection failed");
       }
     } catch (error) {
-      toast.error("Failed to test API connections");
+      toast.error("Failed to test API connection");
       console.error("Connection test error:", error);
     } finally {
       setIsTestingConnections(false);
@@ -64,28 +61,26 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
   };
 
   const handleSaveAndContinue = () => {
-    if (!perplexityKey.trim() || !openrouterKey.trim()) {
-      toast.error("Please enter both API keys");
+    if (!openrouterKey.trim()) {
+      toast.error("Please enter your OpenRouter API key");
       return;
     }
 
     const keys = {
-      perplexity: perplexityKey.trim(),
       openrouter: openrouterKey.trim()
     };
 
     saveAPIKeys(keys);
-    const apiServices = new APIServices(keys.perplexity, keys.openrouter);
+    const apiServices = new APIServices(keys.openrouter);
     onKeysConfigured(apiServices);
     onClose();
-    toast.success("API keys saved and configured!");
+    toast.success("API key saved and configured!");
   };
 
   const handleClearKeys = () => {
     clearAPIKeys();
-    setPerplexityKey("");
     setOpenrouterKey("");
-    setConnectionStatus({ perplexity: null, openrouter: null });
+    setConnectionStatus({ openrouter: null });
     toast.success("API keys cleared");
   };
 
@@ -110,31 +105,12 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
             <span>Configure API Keys</span>
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Enter your Perplexity and OpenRouter API keys to enable real trading strategy generation.
-            Keys are stored securely in your browser.
+            Enter your OpenRouter API key to enable smart contract generation.
+            Your key is stored securely in your browser.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Perplexity API Key */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="perplexity-key" className="text-foreground">Perplexity API Key</Label>
-              <div className="flex items-center space-x-2">
-                {getStatusIcon(connectionStatus.perplexity)}
-                {getStatusBadge(connectionStatus.perplexity)}
-              </div>
-            </div>
-            <Input
-              id="perplexity-key"
-              type="password"
-              placeholder="pplx-..."
-              value={perplexityKey}
-              onChange={(e) => setPerplexityKey(e.target.value)}
-              className="bg-input border-border text-foreground"
-            />
-          </div>
-
           {/* OpenRouter API Key */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -167,7 +143,7 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
               <Button
                 variant="outline"
                 onClick={handleTestConnections}
-                disabled={isTestingConnections || !perplexityKey.trim() || !openrouterKey.trim()}
+                disabled={isTestingConnections || !openrouterKey.trim()}
                 className="flex-1"
               >
                 {isTestingConnections ? (
@@ -180,7 +156,7 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
             
             <Button
               onClick={handleSaveAndContinue}
-              disabled={!perplexityKey.trim() || !openrouterKey.trim()}
+              disabled={!openrouterKey.trim()}
               className="w-full"
             >
               Save & Continue
@@ -197,9 +173,8 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
         </div>
 
         <div className="text-xs text-muted-foreground space-y-1">
-          <p>• Get Perplexity API key at: api.perplexity.ai</p>
           <p>• Get OpenRouter API key at: openrouter.ai</p>
-          <p>• Keys are encrypted and stored locally in your browser</p>
+          <p>• Your key is encrypted and stored locally in your browser</p>
         </div>
       </DialogContent>
     </Dialog>
