@@ -38,8 +38,8 @@ export class APIServices {
   constructor(openrouterKey: string) {
     this.openrouterKey = openrouterKey;
     this.rateLimiter = new RateLimiter({
-      requestsPerMinute: 1,
-      retryDelaySeconds: 61,
+      requestsPerMinute: 20,
+      retryDelaySeconds: 5,
       maxRetries: 3
     });
   }
@@ -63,11 +63,11 @@ export class APIServices {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'qwen/qwen-2.5-coder-32b-instruct:free',
+          model: 'anthropic/claude-sonnet-4',
           messages: [
             {
               role: 'system',
-              content: `You are a Solidity architect. Output ONLY a valid JSON object with function signatures for smart contracts.
+              content: `You are an expert Solidity architect specializing in high-quality, well-documented smart contracts. Output ONLY a valid JSON object with comprehensive function signatures.
 
 REQUIRED JSON FORMAT:
 {
@@ -76,10 +76,16 @@ REQUIRED JSON FORMAT:
     {
       "name": "functionName",
       "signature": "function functionName(address param1, uint256 param2) public returns (bool)",
-      "purpose": "Clear description of what this function does",
+      "purpose": "Detailed explanation of function purpose, security considerations, and business logic",
       "dependencies": ["list", "of", "other", "functions", "it", "calls"],
       "returnType": "bool|uint256|address|string",
-      "parameters": ["address param1", "uint256 param2"]
+      "parameters": ["address param1", "uint256 param2"],
+      "documentation": {
+        "notice": "High-level description for NatSpec",
+        "params": ["param1: Description of first parameter", "param2: Description of second parameter"],
+        "returns": "Description of return value and conditions",
+        "security": "Security considerations and potential risks"
+      }
     }
   ],
   "stateVariables": {
@@ -211,19 +217,29 @@ Output ONLY valid JSON with the exact format specified.`
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'qwen/qwen-2.5-coder-32b-instruct:free',
+          model: 'anthropic/claude-sonnet-4',
           messages: [
             {
               role: 'system',
-              content: `You are a Solidity code generator. Generate complete function implementations for multiple functions at once.
+              content: `You are an expert Solidity developer specializing in secure, well-documented smart contracts. Generate complete function implementations with comprehensive NatSpec documentation.
 
 CRITICAL RULES:
-- Generate ALL requested functions in one response
-- Each function must be complete and syntactically correct
+- Generate ALL requested functions in one response with full NatSpec documentation
+- Each function must include complete /// @notice, /// @param, /// @return comments
+- Add inline comments explaining complex logic and security measures
+- Include proper access control (onlyOwner, nonReentrant where appropriate)
+- Follow OpenZeppelin patterns and best practices
+- Add require statements with clear error messages
+- Include event emissions for state changes
 - Separate functions with double newlines
-- NO explanations, NO markdown blocks, just raw Solidity code
-- Follow Solidity best practices and security patterns
-- Include proper access control and error handling`
+- NO markdown blocks, just raw Solidity code with documentation
+- Use latest Solidity syntax and security patterns
+
+DOCUMENTATION FORMAT:
+/// @notice Clear description of what the function does
+/// @param paramName Description of the parameter and its constraints
+/// @return Description of return value and conditions
+/// @dev Additional technical details, security notes, gas considerations`
             },
             {
               role: 'user',
@@ -291,30 +307,38 @@ Generate complete implementations for ALL ${batch.length} functions above. Retur
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'qwen/qwen-2.5-coder-32b-instruct:free',
+          model: 'anthropic/claude-sonnet-4',
           messages: [
             {
               role: 'system',
-              content: `You are a Solidity code generator. Your ONLY job is to output valid Solidity function code.
+              content: `You are an expert Solidity developer. Generate a single, complete, well-documented function with comprehensive NatSpec documentation.
 
 CRITICAL RULES:
-- OUTPUT ONLY SOLIDITY CODE - NO EXPLANATIONS, NO MARKDOWN, NO TEXT
-- Start response with 'function ' and end with proper closing brace
-- NO CODE BLOCKS (no \`\`\`solidity or \`\`\`)
-- NO EXPLANATORY TEXT BEFORE OR AFTER THE FUNCTION
-- Follow Solidity best practices and security patterns
-- Include proper access control and error handling
-- Use OpenZeppelin imports when appropriate
+- OUTPUT ONLY SOLIDITY CODE WITH NATSPEC DOCUMENTATION
+- Start with /// @notice and include all relevant NatSpec tags
+- Add inline comments for complex logic and security measures
+- Include proper access control and security patterns
+- Use OpenZeppelin imports and patterns when appropriate
+- Add comprehensive error handling with descriptive messages
+- Include event emissions for state changes
 - Follow the exact signature provided
+- NO markdown blocks, just raw Solidity code
 
 EXAMPLE OUTPUT:
-function transfer(address to, uint256 amount) public returns (bool) {
-    require(to != address(0), "Transfer to zero address");
-    require(balances[msg.sender] >= amount, "Insufficient balance");
+/// @notice Transfers tokens from sender to recipient
+/// @param to The recipient address (must not be zero address)
+/// @param amount The amount of tokens to transfer
+/// @return success True if transfer completed successfully
+/// @dev Emits Transfer event on successful transfer
+function transfer(address to, uint256 amount) public returns (bool success) {
+    require(to != address(0), "ERC20: transfer to zero address");
+    require(balances[msg.sender] >= amount, "ERC20: insufficient balance");
     
+    // Update balances
     balances[msg.sender] -= amount;
     balances[to] += amount;
     
+    // Emit transfer event
     emit Transfer(msg.sender, to, amount);
     return true;
 }`
@@ -923,7 +947,7 @@ The contract compiled successfully and is ready for deployment!`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'qwen/qwen-2.5-coder-32b-instruct:free',
+          model: 'anthropic/claude-sonnet-4',
           messages: [{ role: 'user', content: 'test' }],
           max_tokens: 1
         }),
