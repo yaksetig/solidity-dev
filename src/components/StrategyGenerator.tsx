@@ -30,13 +30,13 @@ const StrategyGenerator = () => {
     {
       id: 'planning',
       title: 'Implementation Planning',
-      description: 'Generating Python architecture plan with NVIDIA AI',
+      description: 'Generating Python architecture plan with OpenRouter AI',
       status: 'pending'
     },
     {
       id: 'coding',
       title: 'Code Generation',
-      description: 'Creating Python implementation with NVIDIA GPT-OSS',
+      description: 'Creating Python implementation with OpenRouter GPT-OSS',
       status: 'pending'
     },
     {
@@ -58,7 +58,7 @@ const StrategyGenerator = () => {
     if (!apiServices) {
       const keys = loadAPIKeys();
       if (keys) {
-        setApiServices(new APIServices(keys.perplexity, keys.nvidia));
+        setApiServices(new APIServices(keys.perplexity, keys.openrouter));
         setShowApiKeyDialog(true);
         return;
       } else {
@@ -93,23 +93,23 @@ const StrategyGenerator = () => {
         index === 0 ? { ...step, status: 'completed', content: strategy } : step
       ));
 
-      // Step 2: Implementation Planning with NVIDIA
+      // Step 2: Implementation Planning with OpenRouter
       setSteps(prev => prev.map((step, index) => 
         index === 1 ? { ...step, status: 'loading' } : step
       ));
 
-      const plan = await apiServices.callNvidiaPlanning(strategy);
+      const plan = await apiServices.callOpenRouterPlanning(strategy);
 
       setSteps(prev => prev.map((step, index) => 
         index === 1 ? { ...step, status: 'completed', content: plan } : step
       ));
 
-      // Step 3: Code Generation with NVIDIA
+      // Step 3: Code Generation with OpenRouter
       setSteps(prev => prev.map((step, index) => 
         index === 2 ? { ...step, status: 'loading' } : step
       ));
 
-      const code = await apiServices.callNvidiaCodegen(plan);
+      const code = await apiServices.callOpenRouterCodegen(plan);
 
       setSteps(prev => prev.map((step, index) => 
         index === 2 ? { ...step, status: 'completed', content: code } : step

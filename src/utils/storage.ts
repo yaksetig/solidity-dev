@@ -1,6 +1,6 @@
 interface APIKeys {
   perplexity: string;
-  nvidia: string;
+  openrouter: string;
 }
 
 const STORAGE_KEY = 'trading_strategy_api_keys';
@@ -30,7 +30,7 @@ export function loadAPIKeys(): APIKeys | null {
   try {
     const decrypted = simpleDecrypt(stored);
     const keys = JSON.parse(decrypted);
-    if (keys.perplexity && keys.nvidia) {
+    if (keys.perplexity && keys.openrouter) {
       return keys;
     }
   } catch (error) {

@@ -6,7 +6,7 @@ interface PerplexityResponse {
   }>;
 }
 
-interface NvidiaResponse {
+interface OpenRouterResponse {
   choices: Array<{
     message: {
       content: string;
@@ -16,11 +16,11 @@ interface NvidiaResponse {
 
 export class APIServices {
   private perplexityKey: string;
-  private nvidiaKey: string;
+  private openrouterKey: string;
 
-  constructor(perplexityKey: string, nvidiaKey: string) {
+  constructor(perplexityKey: string, openrouterKey: string) {
     this.perplexityKey = perplexityKey;
-    this.nvidiaKey = nvidiaKey;
+    this.openrouterKey = openrouterKey;
   }
 
   async callPerplexityAPI(prompt: string): Promise<string> {
@@ -70,11 +70,11 @@ Include all 8 required sections in your response.`
     return data.choices[0]?.message?.content || 'No strategy generated';
   }
 
-  async callNvidiaPlanning(strategy: string): Promise<string> {
-    const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+  async callOpenRouterPlanning(strategy: string): Promise<string> {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.nvidiaKey}`,
+        'Authorization': `Bearer ${this.openrouterKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -111,18 +111,18 @@ ${strategy}`
     });
 
     if (!response.ok) {
-      throw new Error(`NVIDIA Planning API error: ${response.status} ${response.statusText}`);
+      throw new Error(`OpenRouter Planning API error: ${response.status} ${response.statusText}`);
     }
 
-    const data: NvidiaResponse = await response.json();
+    const data: OpenRouterResponse = await response.json();
     return data.choices[0]?.message?.content || 'No plan generated';
   }
 
-  async callNvidiaCodegen(plan: string): Promise<string> {
-    const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+  async callOpenRouterCodegen(plan: string): Promise<string> {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${this.nvidiaKey}`,
+        'Authorization': `Bearer ${this.openrouterKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -158,10 +158,10 @@ Generate ONLY Python code with no markdown or explanations.`
     });
 
     if (!response.ok) {
-      throw new Error(`NVIDIA CodeGen API error: ${response.status} ${response.statusText}`);
+      throw new Error(`OpenRouter CodeGen API error: ${response.status} ${response.statusText}`);
     }
 
-    const data: NvidiaResponse = await response.json();
+    const data: OpenRouterResponse = await response.json();
     return data.choices[0]?.message?.content || 'No code generated';
   }
 
@@ -212,8 +212,8 @@ Generate ONLY Python code with no markdown or explanations.`
     return validationResults.join('\n');
   }
 
-  async testApiConnections(): Promise<{ perplexity: boolean; nvidia: boolean }> {
-    const results = { perplexity: false, nvidia: false };
+  async testApiConnections(): Promise<{ perplexity: boolean; openrouter: boolean }> {
+    const results = { perplexity: false, openrouter: false };
 
     // Test Perplexity
     try {
@@ -234,12 +234,12 @@ Generate ONLY Python code with no markdown or explanations.`
       console.error('Perplexity API test failed:', error);
     }
 
-    // Test NVIDIA
+    // Test OpenRouter
     try {
-      await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
+      await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.nvidiaKey}`,
+          'Authorization': `Bearer ${this.openrouterKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -248,9 +248,9 @@ Generate ONLY Python code with no markdown or explanations.`
           max_tokens: 1
         }),
       });
-      results.nvidia = true;
+      results.openrouter = true;
     } catch (error) {
-      console.error('NVIDIA API test failed:', error);
+      console.error('OpenRouter API test failed:', error);
     }
 
     return results;

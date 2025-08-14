@@ -17,18 +17,18 @@ interface ApiKeyDialogProps {
 
 const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) => {
   const [perplexityKey, setPerplexityKey] = useState("");
-  const [nvidiaKey, setNvidiaKey] = useState("");
+  const [openrouterKey, setOpenrouterKey] = useState("");
   const [isTestingConnections, setIsTestingConnections] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<{
     perplexity: boolean | null;
-    nvidia: boolean | null;
-  }>({ perplexity: null, nvidia: null });
+    openrouter: boolean | null;
+  }>({ perplexity: null, openrouter: null });
 
   const handleLoadSavedKeys = () => {
     const savedKeys = loadAPIKeys();
     if (savedKeys) {
       setPerplexityKey(savedKeys.perplexity);
-      setNvidiaKey(savedKeys.nvidia);
+      setOpenrouterKey(savedKeys.openrouter);
       toast.success("Loaded saved API keys");
     } else {
       toast.error("No saved API keys found");
@@ -36,21 +36,21 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
   };
 
   const handleTestConnections = async () => {
-    if (!perplexityKey.trim() || !nvidiaKey.trim()) {
+    if (!perplexityKey.trim() || !openrouterKey.trim()) {
       toast.error("Please enter both API keys");
       return;
     }
 
     setIsTestingConnections(true);
-    setConnectionStatus({ perplexity: null, nvidia: null });
+    setConnectionStatus({ perplexity: null, openrouter: null });
 
     try {
-      const apiServices = new APIServices(perplexityKey.trim(), nvidiaKey.trim());
+      const apiServices = new APIServices(perplexityKey.trim(), openrouterKey.trim());
       const results = await apiServices.testApiConnections();
       
       setConnectionStatus(results);
       
-      if (results.perplexity && results.nvidia) {
+      if (results.perplexity && results.openrouter) {
         toast.success("Both API connections successful!");
       } else {
         toast.error("One or more API connections failed");
@@ -64,18 +64,18 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
   };
 
   const handleSaveAndContinue = () => {
-    if (!perplexityKey.trim() || !nvidiaKey.trim()) {
+    if (!perplexityKey.trim() || !openrouterKey.trim()) {
       toast.error("Please enter both API keys");
       return;
     }
 
     const keys = {
       perplexity: perplexityKey.trim(),
-      nvidia: nvidiaKey.trim()
+      openrouter: openrouterKey.trim()
     };
 
     saveAPIKeys(keys);
-    const apiServices = new APIServices(keys.perplexity, keys.nvidia);
+    const apiServices = new APIServices(keys.perplexity, keys.openrouter);
     onKeysConfigured(apiServices);
     onClose();
     toast.success("API keys saved and configured!");
@@ -84,8 +84,8 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
   const handleClearKeys = () => {
     clearAPIKeys();
     setPerplexityKey("");
-    setNvidiaKey("");
-    setConnectionStatus({ perplexity: null, nvidia: null });
+    setOpenrouterKey("");
+    setConnectionStatus({ perplexity: null, openrouter: null });
     toast.success("API keys cleared");
   };
 
@@ -110,7 +110,7 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
             <span>Configure API Keys</span>
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Enter your Perplexity and NVIDIA API keys to enable real trading strategy generation.
+            Enter your Perplexity and OpenRouter API keys to enable real trading strategy generation.
             Keys are stored securely in your browser.
           </DialogDescription>
         </DialogHeader>
@@ -135,21 +135,21 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
             />
           </div>
 
-          {/* NVIDIA API Key */}
+          {/* OpenRouter API Key */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label htmlFor="nvidia-key" className="text-foreground">NVIDIA API Key</Label>
+              <Label htmlFor="openrouter-key" className="text-foreground">OpenRouter API Key</Label>
               <div className="flex items-center space-x-2">
-                {getStatusIcon(connectionStatus.nvidia)}
-                {getStatusBadge(connectionStatus.nvidia)}
+                {getStatusIcon(connectionStatus.openrouter)}
+                {getStatusBadge(connectionStatus.openrouter)}
               </div>
             </div>
             <Input
-              id="nvidia-key"
+              id="openrouter-key"
               type="password"
-              placeholder="nvapi-..."
-              value={nvidiaKey}
-              onChange={(e) => setNvidiaKey(e.target.value)}
+              placeholder="sk-or-..."
+              value={openrouterKey}
+              onChange={(e) => setOpenrouterKey(e.target.value)}
               className="bg-input border-border text-foreground"
             />
           </div>
@@ -167,7 +167,7 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
               <Button
                 variant="outline"
                 onClick={handleTestConnections}
-                disabled={isTestingConnections || !perplexityKey.trim() || !nvidiaKey.trim()}
+                disabled={isTestingConnections || !perplexityKey.trim() || !openrouterKey.trim()}
                 className="flex-1"
               >
                 {isTestingConnections ? (
@@ -180,7 +180,7 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
             
             <Button
               onClick={handleSaveAndContinue}
-              disabled={!perplexityKey.trim() || !nvidiaKey.trim()}
+              disabled={!perplexityKey.trim() || !openrouterKey.trim()}
               className="w-full"
             >
               Save & Continue
@@ -198,7 +198,7 @@ const ApiKeyDialog = ({ open, onClose, onKeysConfigured }: ApiKeyDialogProps) =>
 
         <div className="text-xs text-muted-foreground space-y-1">
           <p>• Get Perplexity API key at: api.perplexity.ai</p>
-          <p>• Get NVIDIA API key at: build.nvidia.com</p>
+          <p>• Get OpenRouter API key at: openrouter.ai</p>
           <p>• Keys are encrypted and stored locally in your browser</p>
         </div>
       </DialogContent>
