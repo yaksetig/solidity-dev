@@ -2,8 +2,11 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Play, Code, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, Play, Code, CheckCircle, AlertCircle, Settings } from "lucide-react";
 import { toast } from "sonner";
+import ApiKeyDialog from "@/components/ApiKeyDialog";
+import { APIServices } from "@/services/apiServices";
+import { hasAPIKeys, loadAPIKeys } from "@/utils/storage";
 
 interface GenerationStep {
   id: string;
@@ -15,6 +18,8 @@ interface GenerationStep {
 
 const StrategyGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+  const [apiServices, setApiServices] = useState<APIServices | null>(null);
   const [steps, setSteps] = useState<GenerationStep[]>([
     {
       id: 'strategy',
@@ -43,46 +48,106 @@ const StrategyGenerator = () => {
   ]);
 
   const handleGenerateStrategy = async () => {
-    setIsGenerating(true);
-    toast.success("Starting strategy generation...");
-    
-    // For now, simulate the workflow
-    simulateGeneration();
-  };
-
-  const simulateGeneration = async () => {
-    const delays = [2000, 3000, 4000, 2500];
-    
-    for (let i = 0; i < steps.length; i++) {
-      // Set current step to loading
-      setSteps(prev => prev.map((step, index) => 
-        index === i ? { ...step, status: 'loading' } : step
-      ));
-      
-      await new Promise(resolve => setTimeout(resolve, delays[i]));
-      
-      // Set current step to completed with mock content
-      setSteps(prev => prev.map((step, index) => 
-        index === i ? { 
-          ...step, 
-          status: 'completed',
-          content: getMockContent(step.id)
-        } : step
-      ));
+    // Check if we have API keys
+    if (!hasAPIKeys()) {
+      setShowApiKeyDialog(true);
+      return;
     }
+
+    // Load API keys and create services if not already done
+    if (!apiServices) {
+      const keys = loadAPIKeys();
+      if (keys) {
+        setApiServices(new APIServices(keys.perplexity, keys.nvidia));
+        setShowApiKeyDialog(true);
+        return;
+      } else {
+        setShowApiKeyDialog(true);
+        return;
+      }
+    }
+
+    setIsGenerating(true);
+    toast.success("Starting real strategy generation...");
     
-    setIsGenerating(false);
-    toast.success("Strategy generation completed!");
+    await generateRealStrategy();
   };
 
-  const getMockContent = (stepId: string): string => {
-    const mockContents = {
-      strategy: "Mean Reversion Strategy using Binance spot data and DeFiLlama TVL metrics. The strategy identifies oversold conditions in major cryptocurrencies when TVL in related DeFi protocols shows divergence.",
-      planning: "1. Set up Binance API client\n2. Integrate DeFiLlama API\n3. Implement moving average calculations\n4. Create signal generation logic\n5. Add risk management\n6. Setup backtesting framework",
-      coding: "```python\nimport ccxt\nimport requests\nimport pandas as pd\nimport numpy as np\n\nclass MeanReversionStrategy:\n    def __init__(self, api_key, secret):\n        self.exchange = ccxt.binance({\n            'apiKey': api_key,\n            'secret': secret,\n            'sandbox': True\n        })\n        \n    def get_tvl_data(self, protocol):\n        url = f'https://api.llama.fi/protocol/{protocol}'\n        response = requests.get(url)\n        return response.json()\n```",
-      testing: "✅ Code compilation successful\n✅ API connections validated\n✅ Strategy logic verified\n⚠️ Backtesting recommended before live trading"
-    };
-    return mockContents[stepId as keyof typeof mockContents] || "Content generated";
+  const generateRealStrategy = async () => {
+    if (!apiServices) return;
+
+    // Reset all steps
+    setSteps(prev => prev.map(step => ({ ...step, status: 'pending', content: undefined })));
+
+    try {
+      // Step 1: Strategy Generation with Perplexity
+      setSteps(prev => prev.map((step, index) => 
+        index === 0 ? { ...step, status: 'loading' } : step
+      ));
+
+      const strategy = await apiServices.callPerplexityAPI(
+        "I want you to come up with one algorithmic trading strategy that relies, at most, on two APIs: Binance and DefiLlama. Provide a detailed strategy description including entry/exit conditions, risk management, and specific metrics to track."
+      );
+
+      setSteps(prev => prev.map((step, index) => 
+        index === 0 ? { ...step, status: 'completed', content: strategy } : step
+      ));
+
+      // Step 2: Implementation Planning with NVIDIA
+      setSteps(prev => prev.map((step, index) => 
+        index === 1 ? { ...step, status: 'loading' } : step
+      ));
+
+      const plan = await apiServices.callNvidiaPlanning(strategy);
+
+      setSteps(prev => prev.map((step, index) => 
+        index === 1 ? { ...step, status: 'completed', content: plan } : step
+      ));
+
+      // Step 3: Code Generation with NVIDIA
+      setSteps(prev => prev.map((step, index) => 
+        index === 2 ? { ...step, status: 'loading' } : step
+      ));
+
+      const code = await apiServices.callNvidiaCodegen(plan);
+
+      setSteps(prev => prev.map((step, index) => 
+        index === 2 ? { ...step, status: 'completed', content: code } : step
+      ));
+
+      // Step 4: Code Testing/Validation
+      setSteps(prev => prev.map((step, index) => 
+        index === 3 ? { ...step, status: 'loading' } : step
+      ));
+
+      const validation = apiServices.validateCode(code);
+
+      setSteps(prev => prev.map((step, index) => 
+        index === 3 ? { ...step, status: 'completed', content: validation } : step
+      ));
+
+      setIsGenerating(false);
+      toast.success("Real strategy generation completed!");
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      // Mark current loading step as error
+      setSteps(prev => prev.map(step => 
+        step.status === 'loading' ? { ...step, status: 'error', content: `Error: ${errorMessage}` } : step
+      ));
+
+      setIsGenerating(false);
+      toast.error(`Strategy generation failed: ${errorMessage}`);
+    }
+  };
+
+  const handleApiKeysConfigured = (configuredApiServices: APIServices) => {
+    setApiServices(configuredApiServices);
+    // Automatically start generation after keys are configured
+    setTimeout(() => {
+      generateRealStrategy();
+    }, 500);
   };
 
   const getStepIcon = (status: GenerationStep['status']) => {
@@ -117,16 +182,28 @@ const StrategyGenerator = () => {
               Create algorithmic trading strategies using AI. From concept to implementation in minutes.
             </p>
             
-            <Button 
-              variant="hero" 
-              size="lg"
-              onClick={handleGenerateStrategy}
-              disabled={isGenerating}
-              className="group"
-            >
-              <Play className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
-              Create New Trading Strategy
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-3 sm:space-y-0 sm:space-x-4">
+              <Button 
+                variant="hero" 
+                size="lg"
+                onClick={handleGenerateStrategy}
+                disabled={isGenerating}
+                className="group"
+              >
+                <Play className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
+                Create New Trading Strategy
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                size="lg"
+                onClick={() => setShowApiKeyDialog(true)}
+                className="group border-primary/20 text-primary hover:bg-primary/10"
+              >
+                <Settings className="h-5 w-5 mr-2 group-hover:rotate-90 transition-transform" />
+                Configure API Keys
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -163,19 +240,37 @@ const StrategyGenerator = () => {
                     </Badge>
                   </div>
                   
-                  {step.content && (
-                    <div className="bg-muted/50 rounded-lg p-4 border">
-                      <pre className="text-sm text-foreground whitespace-pre-wrap font-mono">
-                        {step.content}
-                      </pre>
-                    </div>
-                  )}
+                   {step.content && (
+                     <div className="bg-muted/50 rounded-lg p-4 border">
+                       <div className="flex justify-between items-center mb-2">
+                         <span className="text-xs text-muted-foreground font-medium">Generated Content</span>
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={() => navigator.clipboard.writeText(step.content || '')}
+                           className="text-xs"
+                         >
+                           Copy
+                         </Button>
+                       </div>
+                       <pre className="text-sm text-foreground whitespace-pre-wrap font-mono overflow-x-auto">
+                         {step.content}
+                       </pre>
+                     </div>
+                   )}
                 </div>
               </div>
             </Card>
           ))}
         </div>
       </div>
+
+      {/* API Key Configuration Dialog */}
+      <ApiKeyDialog
+        open={showApiKeyDialog}
+        onClose={() => setShowApiKeyDialog(false)}
+        onKeysConfigured={handleApiKeysConfigured}
+      />
     </div>
   );
 };
