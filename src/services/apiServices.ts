@@ -108,7 +108,7 @@ ${prompt}`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-oss-120b',
+        model: 'qwen/qwen-2.5-coder-32b-instruct:free',
         messages: [
           {
             role: 'system',
@@ -220,25 +220,30 @@ Output ONLY valid JSON with the exact format specified.`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-oss-20b',
+        model: 'qwen/qwen-2.5-coder-32b-instruct:free',
         messages: [
           {
             role: 'system',
-            content: `You are a Python developer implementing individual functions for crypto trading bots. 
+            content: `You are a Python code generator. Your ONLY job is to output valid Python function code.
 
-REQUIREMENTS:
-- Implement ONLY the requested function
+CRITICAL RULES:
+- OUTPUT ONLY PYTHON CODE - NO EXPLANATIONS, NO MARKDOWN, NO TEXT
+- Start response with 'def ' and end with proper indentation
+- NO CODE BLOCKS (no \`\`\`python or \`\`\`)
+- NO EXPLANATORY TEXT BEFORE OR AFTER THE FUNCTION
 - Use ONLY: urllib.request, json, time, math, datetime, os
-- Include comprehensive docstring and error handling
+- Include docstring and error handling
 - Follow the exact signature provided
-- Add logging and validation where appropriate
-- Output ONLY the function code, no markdown, no explanations
 
-STYLE:
-- Clear, readable code with comments
-- Proper error handling with try/catch
-- Type hints where possible
-- Descriptive variable names`
+EXAMPLE OUTPUT:
+def example_function(param: str) -> dict:
+    """Function docstring here."""
+    try:
+        # implementation here
+        return result
+    except Exception as e:
+        print(f"Error: {e}")
+        return {}`
           },
           {
             role: 'user',
@@ -256,7 +261,7 @@ ${strategy.substring(0, 1000)}...
 OTHER FUNCTIONS IN SYSTEM:
 ${allFunctions.map(f => `- ${f.signature}`).join('\n')}
 
-Implement ONLY this function with proper error handling and documentation. Use only native Python libraries.`
+OUTPUT ONLY THE PYTHON FUNCTION CODE. NO MARKDOWN. NO EXPLANATIONS. START WITH 'def' AND END WITH PROPER INDENTATION.`
           }
         ],
         temperature: 0.1,
@@ -269,7 +274,47 @@ Implement ONLY this function with proper error handling and documentation. Use o
     }
 
     const data: OpenRouterResponse = await response.json();
-    return data.choices[0]?.message?.content || 'No implementation generated';
+    const rawCode = data.choices[0]?.message?.content || 'No implementation generated';
+    return this.extractPythonCode(rawCode);
+  }
+
+  private extractPythonCode(rawResponse: string): string {
+    try {
+      // Remove markdown code blocks
+      let cleaned = rawResponse.replace(/```python\n?|```\n?/g, '').trim();
+      
+      // Remove any text before the first 'def '
+      const defIndex = cleaned.indexOf('def ');
+      if (defIndex > 0) {
+        cleaned = cleaned.substring(defIndex);
+      }
+      
+      // Remove any explanatory text after the function (look for common patterns)
+      const lines = cleaned.split('\n');
+      const functionLines: string[] = [];
+      let insideFunction = false;
+      let indentLevel = 0;
+      
+      for (const line of lines) {
+        if (line.trim().startsWith('def ')) {
+          insideFunction = true;
+          indentLevel = line.length - line.trimLeft().length;
+          functionLines.push(line);
+        } else if (insideFunction) {
+          const currentIndent = line.length - line.trimLeft().length;
+          // If we hit a line with same or less indentation and it's not empty, function is done
+          if (line.trim() && currentIndent <= indentLevel && !line.trim().startsWith('#')) {
+            break;
+          }
+          functionLines.push(line);
+        }
+      }
+      
+      return functionLines.join('\n').trim() || rawResponse;
+    } catch (error) {
+      console.warn('Failed to extract Python code, returning raw response:', error);
+      return rawResponse;
+    }
   }
 
   aggregateCode(implementedFunctions: { name: string; code: string }[], strategy: string): string {
