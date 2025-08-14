@@ -35,16 +35,30 @@ export class APIServices {
         messages: [
           {
             role: 'system',
-            content: 'Be precise and concise. Focus on algorithmic trading strategies that use real APIs.'
+            content: `You are a quantitative trading strategist. Generate detailed algorithmic trading strategies that must include:
+
+1. STRATEGY OVERVIEW: Clear name and 2-3 sentence description
+2. MARKET FOCUS: Specific markets/instruments to trade (e.g., crypto pairs, forex, stocks)
+3. DATA REQUIREMENTS: Exact APIs needed (Binance for prices, DefiLlama for TVL, etc.)
+4. TECHNICAL INDICATORS: Specific indicators and their parameters
+5. ENTRY CONDITIONS: Precise mathematical conditions for opening positions
+6. EXIT CONDITIONS: Specific stop-loss, take-profit, and exit rules
+7. RISK MANAGEMENT: Position sizing rules and maximum exposure limits
+8. IMPLEMENTATION REQUIREMENTS: Key Python libraries and API endpoints needed
+
+Format your response with clear sections using these exact headers. Be specific with numbers, thresholds, and mathematical formulas.`
           },
           {
             role: 'user',
-            content: prompt
+            content: `Generate one complete algorithmic trading strategy that uses at most 2 APIs: Binance and DefiLlama. 
+Focus on: ${prompt}
+Complexity level: intermediate
+Include all 8 required sections in your response.`
           }
         ],
         temperature: 0.2,
         top_p: 0.9,
-        max_tokens: 1000
+        max_tokens: 2000
       }),
     });
 
@@ -68,11 +82,26 @@ export class APIServices {
         messages: [
           {
             role: 'system',
-            content: 'You are a senior Python developer. Create detailed implementation plans for trading strategies.'
+            content: `You are a senior Python developer specializing in algorithmic trading systems. You receive structured trading strategies and must create detailed implementation plans.
+
+Your implementation plan must include:
+
+1. PROJECT STRUCTURE: File organization and module breakdown
+2. DEPENDENCIES: Required Python packages and versions
+3. API INTEGRATION: Specific endpoint implementations for each required API
+4. DATA PIPELINE: How to fetch, process, and store market data
+5. STRATEGY LOGIC: Step-by-step implementation of entry/exit conditions
+6. RISK MANAGEMENT: Implementation of position sizing and risk controls
+7. TESTING FRAMEWORK: Unit tests and backtesting approach
+8. DEPLOYMENT CONSIDERATIONS: Error handling, logging, and monitoring
+
+Provide concrete implementation steps, not just high-level concepts.`
           },
           {
             role: 'user',
-            content: `Create an implementation plan to hand out to a developer for this trading strategy: ${strategy}`
+            content: `Based on this structured trading strategy, create a detailed implementation plan with all 8 required sections:
+
+${strategy}`
           }
         ],
         temperature: 1,
@@ -101,11 +130,25 @@ export class APIServices {
         messages: [
           {
             role: 'system',
-            content: 'You are an expert Python developer. Generate only Python code, no explanations. Focus on algorithmic trading implementations.'
+            content: `You are an expert Python developer. Generate production-ready algorithmic trading code based on the provided implementation plan.
+
+Requirements:
+- Use proper error handling and logging
+- Include docstrings for all functions and classes
+- Implement proper configuration management
+- Add rate limiting for API calls
+- Include basic backtesting functionality
+- Follow PEP 8 style guidelines
+
+Generate ONLY Python code with no markdown formatting or explanations.`
           },
           {
             role: 'user',
-            content: `Generate Python code for this implementation plan: ${plan}. Only return Python code, no markdown or explanations.`
+            content: `Generate production-ready Python code based on this detailed implementation plan:
+
+${plan}
+
+Generate ONLY Python code with no markdown or explanations.`
           }
         ],
         temperature: 1,
