@@ -166,15 +166,25 @@ Output ONLY valid JSON with the exact format specified.`
     }
   }
 
-  async implementFunctionsFromJSON(architectureJson: string, contractRequest: string): Promise<{ name: string; code: string }[]> {
+  async implementFunctionsFromJSON(
+    architectureJson: string,
+    contractRequest: string,
+    onProgress?: (completed: number, total: number) => void
+  ): Promise<{ name: string; code: string }[]> {
     // Parse the JSON directly
     const architecture = this.parseArchitectureJSON(architectureJson);
     const implementedFunctions: { name: string; code: string }[] = [];
-    
+    const totalFunctions = architecture.functions.length;
+    onProgress?.(0, totalFunctions);
+
     // Process each function individually as requested
     for (const func of architecture.functions) {
       try {
-        const functionCode = await this.implementFunction(func, contractRequest, architecture.functions);
+        const functionCode = await this.implementFunction(
+          func,
+          contractRequest,
+          architecture.functions
+        );
         implementedFunctions.push({
           name: func.name,
           code: functionCode
@@ -182,13 +192,14 @@ Output ONLY valid JSON with the exact format specified.`
       } catch (error) {
         console.error(`Failed to implement function ${func.name}:`, error);
         // Add error placeholder for failed function
-        implementedFunctions.push({ 
-          name: func.name, 
+        implementedFunctions.push({
+          name: func.name,
           code: `// ERROR: Failed to implement ${func.name}\n// ${error instanceof Error ? error.message : 'Unknown error'}\nfunction ${func.name}() public {\n    revert("Function implementation failed");\n}`
         });
       }
+      onProgress?.(implementedFunctions.length, totalFunctions);
     }
-    
+
     return implementedFunctions;
   }
 
