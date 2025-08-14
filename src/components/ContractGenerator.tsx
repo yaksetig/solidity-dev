@@ -49,6 +49,14 @@ const ContractGenerator = () => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const rateLimitStatus = useRateLimitStatus(apiServices);
 
+  const formatJSON = (json: string) => {
+    try {
+      return JSON.stringify(JSON.parse(json), null, 2);
+    } catch {
+      return json;
+    }
+  };
+
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
       const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
@@ -157,10 +165,17 @@ const ContractGenerator = () => {
         index === 0 ? { ...step, status: 'loading' } : step
       ));
 
-      const architectureJson = await apiServices.callOpenRouterArchitect(userRequest);
+      const architectureResponse = await apiServices.callOpenRouterArchitect(userRequest);
+      let architectureJson = architectureResponse;
+      try {
+        const parsed = apiServices.parseArchitectureJSON(architectureResponse);
+        architectureJson = JSON.stringify(parsed, null, 2);
+      } catch (error) {
+        console.error('Failed to parse architecture JSON:', error);
+      }
       setArchitectureJson(architectureJson);
 
-      setCurrentSteps(prev => prev.map((step, index) => 
+      setCurrentSteps(prev => prev.map((step, index) =>
         index === 0 ? { ...step, status: 'completed', content: architectureJson } : step
       ));
 
@@ -409,7 +424,7 @@ Your smart contract is ready! You can now deploy it to any Ethereum-compatible n
                         <div className="px-4 pb-4">
                           <div className="bg-muted rounded-lg p-3 overflow-x-auto">
                             <pre className="text-xs text-foreground whitespace-pre-wrap">
-                              {JSON.stringify(JSON.parse(architectureJson), null, 2)}
+                              {architectureJson ? formatJSON(architectureJson) : ''}
                             </pre>
                           </div>
                           <div className="flex justify-end mt-2">
