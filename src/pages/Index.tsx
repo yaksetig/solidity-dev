@@ -1,7 +1,7 @@
-import StrategyGenerator from "@/components/StrategyGenerator";
+import ContractGenerator from "@/components/ContractGenerator";
 
 const Index = () => {
-  return <StrategyGenerator />;
+  return <ContractGenerator />;
 };
 
 export default Index;

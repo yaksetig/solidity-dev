@@ -100,7 +100,7 @@ ${prompt}`
     return data.choices[0]?.message?.content || 'No strategy generated';
   }
 
-  async callOpenRouterArchitect(strategy: string): Promise<string> {
+  async callOpenRouterArchitect(contractRequest: string): Promise<string> {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -112,42 +112,48 @@ ${prompt}`
         messages: [
           {
             role: 'system',
-            content: `You are a software architect. Output ONLY a valid JSON object with function signatures for crypto trading bots.
+            content: `You are a Solidity architect. Output ONLY a valid JSON object with function signatures for smart contracts.
 
 REQUIRED JSON FORMAT:
 {
+  "contractName": "ContractName",
   "functions": [
     {
-      "name": "function_name",
-      "signature": "function_name(param1: type, param2: type) -> return_type",
+      "name": "functionName",
+      "signature": "function functionName(address param1, uint256 param2) public returns (bool)",
       "purpose": "Clear description of what this function does",
       "dependencies": ["list", "of", "other", "functions", "it", "calls"],
-      "returnType": "str|dict|list|float|bool",
-      "parameters": ["param1: type", "param2: type"]
+      "returnType": "bool|uint256|address|string",
+      "parameters": ["address param1", "uint256 param2"]
     }
   ],
-  "dataStructures": {
-    "CandleData": "Dict with keys: timestamp, open, high, low, close, volume",
-    "Signal": "Dict with keys: action (buy/sell/hold), confidence, timestamp"
+  "stateVariables": {
+    "variableName": "uint256 public variableName",
+    "mappingName": "mapping(address => uint256) private balances"
   },
-  "mainFlow": ["step1_function", "step2_function", "step3_function"]
+  "events": [
+    "Transfer(address indexed from, address indexed to, uint256 value)"
+  ],
+  "imports": [
+    "@openzeppelin/contracts/token/ERC20/ERC20.sol"
+  ]
 }
 
 CRITICAL: Output ONLY the JSON object, no explanations, no markdown, no additional text.`
           },
           {
             role: 'user',
-            content: `Convert this trading strategy into a JSON function architecture:
+            content: `Convert this smart contract request into a JSON function architecture:
 
-${strategy}
+${contractRequest}
 
 Create function signatures for:
-- Data fetching (crypto prices, historical data)
-- Technical indicators (moving averages, RSI, etc.)
-- Signal generation (entry/exit logic) 
-- Risk management (position sizing)
-- Backtesting engine functions
-- Main orchestration
+- Core contract functionality (transfer, approve, etc.)
+- Access control and security functions
+- Business logic specific to the contract type
+- View functions for reading state
+- Event emissions for important state changes
+- Constructor for initialization
 
 Output ONLY valid JSON with the exact format specified.`
           }
@@ -189,7 +195,7 @@ Output ONLY valid JSON with the exact format specified.`
     }
   }
 
-  async implementFunctionsFromJSON(architectureJson: string, strategy: string): Promise<{ name: string; code: string }[]> {
+  async implementFunctionsFromJSON(architectureJson: string, contractRequest: string): Promise<{ name: string; code: string }[]> {
     // Parse the JSON directly
     const architecture = this.parseArchitectureJSON(architectureJson);
     const implementedFunctions: { name: string; code: string }[] = [];
@@ -197,7 +203,7 @@ Output ONLY valid JSON with the exact format specified.`
     // Implement each function individually
     for (const func of architecture.functions) {
       try {
-        const functionCode = await this.implementFunction(func, strategy, architecture.functions);
+        const functionCode = await this.implementFunction(func, contractRequest, architecture.functions);
         implementedFunctions.push({ name: func.name, code: functionCode });
       } catch (error) {
         console.error(`Failed to implement ${func.name}:`, error);
@@ -212,7 +218,7 @@ Output ONLY valid JSON with the exact format specified.`
     return implementedFunctions;
   }
 
-  async implementFunction(functionSig: FunctionSignature, strategy: string, allFunctions: FunctionSignature[]): Promise<string> {
+  async implementFunction(functionSig: FunctionSignature, contractRequest: string, allFunctions: FunctionSignature[]): Promise<string> {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -224,44 +230,44 @@ Output ONLY valid JSON with the exact format specified.`
         messages: [
           {
             role: 'system',
-            content: `You are a Python code generator. Your ONLY job is to output valid Python function code.
+            content: `You are a Solidity code generator. Your ONLY job is to output valid Solidity function code.
 
 CRITICAL RULES:
-- OUTPUT ONLY PYTHON CODE - NO EXPLANATIONS, NO MARKDOWN, NO TEXT
-- Start response with 'def ' and end with proper indentation
-- NO CODE BLOCKS (no \`\`\`python or \`\`\`)
+- OUTPUT ONLY SOLIDITY CODE - NO EXPLANATIONS, NO MARKDOWN, NO TEXT
+- Start response with 'function ' and end with proper closing brace
+- NO CODE BLOCKS (no \`\`\`solidity or \`\`\`)
 - NO EXPLANATORY TEXT BEFORE OR AFTER THE FUNCTION
-- Use ONLY: urllib.request, json, time, math, datetime, os
-- Include docstring and error handling
+- Follow Solidity best practices and security patterns
+- Include proper access control and error handling
+- Use OpenZeppelin imports when appropriate
 - Follow the exact signature provided
 
 EXAMPLE OUTPUT:
-def example_function(param: str) -> dict:
-    """Function docstring here."""
-    try:
-        # implementation here
-        return result
-    except Exception as e:
-        print(f"Error: {e}")
-        return {}`
+function transfer(address to, uint256 amount) public returns (bool) {
+    require(to != address(0), "Transfer to zero address");
+    require(balances[msg.sender] >= amount, "Insufficient balance");
+    
+    balances[msg.sender] -= amount;
+    balances[to] += amount;
+    
+    emit Transfer(msg.sender, to, amount);
+    return true;
+}`
           },
           {
             role: 'user',
-            content: `Implement this function for a crypto trading strategy:
+            content: `IMPLEMENT THIS FUNCTION:
+${functionSig.signature}
 
-FUNCTION TO IMPLEMENT:
-Name: ${functionSig.name}
-Signature: ${functionSig.signature}
-Purpose: ${functionSig.purpose}
-Dependencies: ${functionSig.dependencies.join(', ')}
+PURPOSE: ${functionSig.purpose}
 
-STRATEGY CONTEXT:
-${strategy.substring(0, 1000)}...
+CONTRACT CONTEXT:
+${contractRequest}
 
-OTHER FUNCTIONS IN SYSTEM:
+OTHER FUNCTIONS IN CONTRACT:
 ${allFunctions.map(f => `- ${f.signature}`).join('\n')}
 
-OUTPUT ONLY THE PYTHON FUNCTION CODE. NO MARKDOWN. NO EXPLANATIONS. START WITH 'def' AND END WITH PROPER INDENTATION.`
+OUTPUT ONLY THE SOLIDITY FUNCTION CODE. NO MARKDOWN. NO EXPLANATIONS. START WITH 'function' AND END WITH PROPER CLOSING BRACE.`
           }
         ],
         temperature: 0.1,
@@ -275,46 +281,112 @@ OUTPUT ONLY THE PYTHON FUNCTION CODE. NO MARKDOWN. NO EXPLANATIONS. START WITH '
 
     const data: OpenRouterResponse = await response.json();
     const rawCode = data.choices[0]?.message?.content || 'No implementation generated';
-    return this.extractPythonCode(rawCode);
+    return this.extractSolidityCode(rawCode);
   }
 
-  private extractPythonCode(rawResponse: string): string {
+  private extractSolidityCode(rawResponse: string): string {
     try {
       // Remove markdown code blocks
-      let cleaned = rawResponse.replace(/```python\n?|```\n?/g, '').trim();
+      let cleaned = rawResponse.replace(/```solidity\n?|```\n?/g, '').trim();
       
-      // Remove any text before the first 'def '
-      const defIndex = cleaned.indexOf('def ');
-      if (defIndex > 0) {
-        cleaned = cleaned.substring(defIndex);
+      // Remove any text before the first 'function '
+      const functionIndex = cleaned.indexOf('function ');
+      if (functionIndex > 0) {
+        cleaned = cleaned.substring(functionIndex);
       }
       
-      // Remove any explanatory text after the function (look for common patterns)
+      // Extract the complete function by counting braces
       const lines = cleaned.split('\n');
       const functionLines: string[] = [];
+      let braceCount = 0;
       let insideFunction = false;
-      let indentLevel = 0;
       
       for (const line of lines) {
-        if (line.trim().startsWith('def ')) {
+        if (line.trim().startsWith('function ')) {
           insideFunction = true;
-          indentLevel = line.length - line.trimLeft().length;
           functionLines.push(line);
+          // Count opening braces in this line
+          braceCount += (line.match(/\{/g) || []).length;
+          braceCount -= (line.match(/\}/g) || []).length;
         } else if (insideFunction) {
-          const currentIndent = line.length - line.trimLeft().length;
-          // If we hit a line with same or less indentation and it's not empty, function is done
-          if (line.trim() && currentIndent <= indentLevel && !line.trim().startsWith('#')) {
+          functionLines.push(line);
+          // Count braces to know when function ends
+          braceCount += (line.match(/\{/g) || []).length;
+          braceCount -= (line.match(/\}/g) || []).length;
+          
+          // If brace count reaches 0, we've closed the function
+          if (braceCount <= 0) {
             break;
           }
-          functionLines.push(line);
         }
       }
       
       return functionLines.join('\n').trim() || rawResponse;
     } catch (error) {
-      console.warn('Failed to extract Python code, returning raw response:', error);
+      console.warn('Failed to extract Solidity code, returning raw response:', error);
       return rawResponse;
     }
+  }
+
+  aggregateContract(implementedFunctions: { name: string; code: string }[], contractRequest: string): string {
+    // Parse the architecture to get contract structure
+    let contractName = 'GeneratedContract';
+    let stateVariables: string[] = [];
+    let events: string[] = [];
+    let imports: string[] = [];
+    let constructor = '';
+
+    try {
+      // Try to extract structure info from the first implemented function or use defaults
+      contractName = 'SmartContract';
+      imports = [
+        '// SPDX-License-Identifier: MIT',
+        'pragma solidity ^0.8.19;',
+        '',
+        'import "@openzeppelin/contracts/access/Ownable.sol";',
+        'import "@openzeppelin/contracts/security/ReentrancyGuard.sol";'
+      ];
+      
+      // Basic state variables that most contracts need
+      stateVariables = [
+        '    mapping(address => uint256) private balances;',
+        '    uint256 public totalSupply;',
+        '    string public name;',
+        '    string public symbol;'
+      ];
+      
+      // Common events
+      events = [
+        '    event Transfer(address indexed from, address indexed to, uint256 value);',
+        '    event Approval(address indexed owner, address indexed spender, uint256 value);'
+      ];
+      
+      // Basic constructor
+      constructor = `    constructor(string memory _name, string memory _symbol) {
+        name = _name;
+        symbol = _symbol;
+        totalSupply = 1000000 * 10**18; // 1 million tokens
+        balances[msg.sender] = totalSupply;
+    }`;
+      
+    } catch (error) {
+      console.warn('Could not parse contract structure, using defaults');
+    }
+
+    // Build the complete contract
+    const contractCode = `${imports.join('\n')}
+
+contract ${contractName} is Ownable, ReentrancyGuard {
+${stateVariables.join('\n')}
+
+${events.join('\n')}
+
+${constructor}
+
+${implementedFunctions.map(f => '    ' + f.code.split('\n').join('\n    ')).join('\n\n')}
+}`;
+
+    return contractCode;
   }
 
   aggregateCode(implementedFunctions: { name: string; code: string }[], strategy: string): string {
@@ -632,6 +704,68 @@ The script must be able to run backtests to validate strategy performance before
 
     const data: OpenRouterResponse = await response.json();
     return data.choices[0]?.message?.content || 'No code generated';
+  }
+
+  async compileSolidityContract(solidityCode: string): Promise<string> {
+    try {
+      const response = await fetch('https://solidity-compiler.up.railway.app/compile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source: solidityCode,
+          settings: {
+            optimizer: {
+              enabled: true,
+              runs: 200
+            },
+            outputSelection: {
+              "*": {
+                "*": ["abi", "evm.bytecode"]
+              }
+            }
+          }
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Compilation API error: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.errors && result.errors.length > 0) {
+        const errors = result.errors.map((err: any) => err.formattedMessage).join('\n');
+        return `❌ **Compilation Errors:**\n\`\`\`\n${errors}\n\`\`\``;
+      }
+
+      if (result.contracts) {
+        const contractNames = Object.keys(result.contracts);
+        if (contractNames.length > 0) {
+          const contract = result.contracts[contractNames[0]];
+          const contractData = Object.values(contract)[0] as any;
+          
+          return `✅ **Compilation Successful!**
+
+**Contract ABI:**
+\`\`\`json
+${JSON.stringify(contractData.abi, null, 2)}
+\`\`\`
+
+**Bytecode Size:** ${contractData.evm.bytecode.object.length / 2} bytes
+
+**Gas Estimation:** ~${Math.floor(contractData.evm.bytecode.object.length / 2 * 20)} gas for deployment
+
+The contract compiled successfully and is ready for deployment!`;
+        }
+      }
+
+      return '✅ Contract compiled successfully but no output generated.';
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      return `❌ **Compilation Failed:**\n\nError: ${errorMessage}\n\nPlease check your Solidity code for syntax errors.`;
+    }
   }
 
   async validateWithRailwayAPI(code: string): Promise<string> {

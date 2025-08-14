@@ -2,11 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* AI Trading Strategy Generator Design System */
+/* Smart Contract AI Generator Design System */
 
 @layer base {
   :root {
-    /* Core colors - Deep tech/finance theme */
+    /* Core colors - Deep blockchain/tech theme */
     --background: 217 33% 6%;
     --foreground: 213 27% 84%;
 
@@ -33,11 +33,11 @@
     --accent: 180 100% 70%;
     --accent-foreground: 217 33% 6%;
 
-    /* Success for profitable strategies */
+    /* Success for successful compilation */
     --success: 142 76% 36%;
     --success-foreground: 213 27% 84%;
 
-    /* Warning for risky strategies */
+    /* Warning for compilation warnings */
     --warning: 45 93% 58%;
     --warning-foreground: 217 33% 6%;
 
