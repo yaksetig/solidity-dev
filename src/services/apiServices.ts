@@ -173,6 +173,8 @@ Output ONLY valid JSON with the exact format specified.`
   ): Promise<{ name: string; code: string }[]> {
     // Parse the JSON directly
     const architecture = this.parseArchitectureJSON(architectureJson);
+    // Track total number of functions to implement for progress updates
+    const totalFunctions = architecture.functions.length;
     const implementedFunctions: { name: string; code: string }[] = [];
       
     // Process each function individually and verify implementation
