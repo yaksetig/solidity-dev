@@ -166,11 +166,15 @@ Output ONLY valid JSON with the exact format specified.`
     }
   }
 
-  async implementFunctionsFromJSON(architectureJson: string, contractRequest: string): Promise<{ name: string; code: string }[]> {
+  async implementFunctionsFromJSON(
+    architectureJson: string,
+    contractRequest: string,
+    onProgress?: (completed: number, total: number) => void
+  ): Promise<{ name: string; code: string }[]> {
     // Parse the JSON directly
     const architecture = this.parseArchitectureJSON(architectureJson);
     const implementedFunctions: { name: string; code: string }[] = [];
-
+      
     // Process each function individually and verify implementation
     for (const func of architecture.functions) {
       try {
@@ -202,6 +206,7 @@ Output ONLY valid JSON with the exact format specified.`
           code: `// ERROR: Failed to implement ${func.name}\n// ${error instanceof Error ? error.message : 'Unknown error'}\nfunction ${func.name}() public {\n    revert("Function implementation failed");\n}`
         });
       }
+      onProgress?.(implementedFunctions.length, totalFunctions);
     }
 
     return implementedFunctions;
