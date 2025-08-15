@@ -174,24 +174,33 @@ Output ONLY valid JSON with the exact format specified.`
     // Parse the JSON directly
     const architecture = this.parseArchitectureJSON(architectureJson);
     const implementedFunctions: { name: string; code: string }[] = [];
-    const totalFunctions = architecture.functions.length;
-    onProgress?.(0, totalFunctions);
-
-    // Process each function individually as requested
+      
+    // Process each function individually and verify implementation
     for (const func of architecture.functions) {
       try {
-        const functionCode = await this.implementFunction(
-          func,
-          contractRequest,
-          architecture.functions
-        );
-        implementedFunctions.push({
-          name: func.name,
-          code: functionCode
-        });
+        let attempts = 0;
+        let feedback: string | undefined;
+        let functionCode = '';
+
+        while (attempts < 2) {
+          functionCode = await this.implementFunction(func, contractRequest, architecture.functions, feedback);
+          const review = await this.reviewFunctionImplementation(func, functionCode);
+          if (review.approved) {
+            implementedFunctions.push({ name: func.name, code: functionCode });
+            break;
+          }
+          feedback = review.feedback;
+          attempts++;
+        }
+
+        if (attempts >= 2) {
+          implementedFunctions.push({
+            name: func.name,
+            code: `// ERROR: Review failed for ${func.name}\n// ${feedback || 'Unknown error'}\n${functionCode}`
+          });
+        }
       } catch (error) {
         console.error(`Failed to implement function ${func.name}:`, error);
-        // Add error placeholder for failed function
         implementedFunctions.push({
           name: func.name,
           code: `// ERROR: Failed to implement ${func.name}\n// ${error instanceof Error ? error.message : 'Unknown error'}\nfunction ${func.name}() public {\n    revert("Function implementation failed");\n}`
@@ -203,7 +212,7 @@ Output ONLY valid JSON with the exact format specified.`
     return implementedFunctions;
   }
 
-  async implementFunction(functionSig: FunctionSignature, contractRequest: string, allFunctions: FunctionSignature[]): Promise<string> {
+  async implementFunction(functionSig: FunctionSignature, contractRequest: string, allFunctions: FunctionSignature[], feedback?: string): Promise<string> {
     return this.rateLimiter.makeRequest(async () => {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
@@ -248,6 +257,10 @@ function transfer(address to, uint256 amount) public returns (bool success) {
     return true;
 }`
             },
+            ...(feedback ? [{
+              role: 'system',
+              content: `The previous implementation was rejected for the following reasons: ${feedback}. Please correct these issues.`
+            }] : []),
             {
               role: 'user',
               content: `IMPLEMENT THIS FUNCTION:
@@ -277,6 +290,51 @@ OUTPUT ONLY THE SOLIDITY FUNCTION CODE. NO MARKDOWN. NO EXPLANATIONS. START WITH
       const rawCode = data.choices[0]?.message?.content || 'No implementation generated';
       return this.extractSolidityCode(rawCode);
     }, `function-${functionSig.name}`);
+  }
+
+  async reviewFunctionImplementation(functionSig: FunctionSignature, functionCode: string): Promise<{ approved: boolean; feedback: string }> {
+    return this.rateLimiter.makeRequest(async () => {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.openrouterKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'anthropic/claude-sonnet-4',
+          messages: [
+            {
+              role: 'system',
+              content: `You are a Solidity code reviewer. Examine the specification and implementation. If the implementation is valid, well-written, and contains only Solidity code with comments, respond exactly with 'APPROVED'. If there are issues or extraneous text outside comments, respond with 'REJECTED: <feedback>'.`
+            },
+            {
+              role: 'user',
+              content: `SPECIFICATION:
+${functionSig.signature}
+
+PURPOSE: ${functionSig.purpose}
+
+IMPLEMENTATION:
+${functionCode}`
+            }
+          ],
+          temperature: 0,
+          max_tokens: 500,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenRouter Review API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data: OpenRouterResponse = await response.json();
+      const review = data.choices[0]?.message?.content?.trim() || '';
+      if (review.toUpperCase().startsWith('APPROVED')) {
+        return { approved: true, feedback: '' };
+      }
+      const feedback = review.replace(/^REJECTED:\s*/i, '');
+      return { approved: false, feedback };
+    }, `review-${functionSig.name}`);
   }
 
   private extractSolidityCode(rawResponse: string): string {
